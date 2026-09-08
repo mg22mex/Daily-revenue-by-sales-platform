@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "source": "Walmart Marketplace Orders API",
+  "status": "not_run",
+  "report_date": null,
+  "timezone": "America/New_York",
+  "gross_revenue": 0.0,
+  "order_count": 0,
+  "total_units": 0,
+  "category_units": {
+    "Umbrellas": 0,
+    "Ponchos": 0,
+    "Hats": 0,
+    "Shirts": 0,
+    "Other": 0
+  },
+  "sku_line_items": [],
+  "reconciliation": {
+    "revenue_variance": 0.0,
+    "unit_variance": 0
+  }
+}
