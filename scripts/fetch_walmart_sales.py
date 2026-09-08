@@ -24,6 +24,7 @@ OUTPUT_PATH = Path("data/walmart_daily_summary.json")
 ET = ZoneInfo("America/New_York")
 MONEY = Decimal("0.01")
 STATUSES = ("Created", "Acknowledged", "Shipped", "Delivered")
+SHIP_NODE_TYPES = ("SellerFulfilled", "WFSFulfilled")
 
 
 def request_json(url: str, *, headers: dict[str, str], data: bytes | None = None, attempts: int = 3) -> dict[str, Any]:
@@ -94,11 +95,12 @@ def order_key(order: dict[str, Any]) -> str:
     return str(order.get("purchaseOrderId") or order.get("customerOrderId") or json.dumps(order, sort_keys=True))
 
 
-def fetch_orders_for_status(token: str, start_utc: datetime, end_utc: datetime, status: str) -> list[dict[str, Any]]:
+def fetch_orders_slice(token: str, start_utc: datetime, end_utc: datetime, status: str, ship_node_type: str) -> list[dict[str, Any]]:
     params = {
         "createdStartDate": start_utc.isoformat(timespec="seconds").replace("+00:00", "Z"),
         "createdEndDate": end_utc.isoformat(timespec="seconds").replace("+00:00", "Z"),
         "status": status,
+        "shipNodeType": ship_node_type,
         "limit": 200,
     }
     url: str | None = f"{ORDERS_URL}?{urlencode(params)}"
@@ -124,19 +126,20 @@ def fetch_orders_for_status(token: str, start_utc: datetime, end_utc: datetime, 
 
 
 def fetch_orders(token: str, start_utc: datetime, end_utc: datetime) -> tuple[list[dict[str, Any]], dict[str, int]]:
-    # Walmart accepts one status per request. Query every reportable lifecycle state,
-    # then deduplicate because an order can surface across status transitions.
+    # Walmart accepts one status and one fulfillment type per request. Query the
+    # complete supported matrix, then deduplicate orders across lifecycle states.
     unique: dict[str, dict[str, Any]] = {}
     counts: dict[str, int] = {}
-    for status in STATUSES:
-        batch = fetch_orders_for_status(token, start_utc, end_utc, status)
-        counts[status] = len(batch)
-        for order in batch:
-            unique[order_key(order)] = order
+    for ship_node_type in SHIP_NODE_TYPES:
+        for status in STATUSES:
+            batch = fetch_orders_slice(token, start_utc, end_utc, status, ship_node_type)
+            counts[f"{ship_node_type}:{status}"] = len(batch)
+            for order in batch:
+                unique[order_key(order)] = order
     return list(unique.values()), counts
 
 
-def summarize(orders: list[dict[str, Any]], status_counts: dict[str, int], report_date: str, start_utc: datetime, end_utc: datetime) -> dict[str, Any]:
+def summarize(orders: list[dict[str, Any]], slice_counts: dict[str, int], report_date: str, start_utc: datetime, end_utc: datetime) -> dict[str, Any]:
     skus: dict[str, dict[str, Any]] = {}
     categories: defaultdict[str, int] = defaultdict(int)
     seen_orders: set[str] = set()
@@ -201,7 +204,8 @@ def summarize(orders: list[dict[str, Any]], status_counts: dict[str, int], repor
             "end_exclusive": end_utc.isoformat(timespec="seconds").replace("+00:00", "Z"),
         },
         "queried_statuses": list(STATUSES),
-        "status_order_counts_before_deduplication": status_counts,
+        "queried_ship_node_types": list(SHIP_NODE_TYPES),
+        "query_slice_order_counts_before_deduplication": slice_counts,
         "generated_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "gross_revenue": float(gross.quantize(MONEY, rounding=ROUND_HALF_UP)),
         "order_count": len(seen_orders),
@@ -234,8 +238,8 @@ def main() -> None:
     start_utc = start_et.astimezone(timezone.utc)
     end_utc = end_et.astimezone(timezone.utc)
 
-    orders, status_counts = fetch_orders(access_token(client_id, client_secret), start_utc, end_utc)
-    summary = summarize(orders, status_counts, report_day.isoformat(), start_utc, end_utc)
+    orders, slice_counts = fetch_orders(access_token(client_id, client_secret), start_utc, end_utc)
+    summary = summarize(orders, slice_counts, report_day.isoformat(), start_utc, end_utc)
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(f"Wrote Walmart summary for {report_day.isoformat()} ({summary['order_count']} orders)")
