@@ -4,34 +4,83 @@
     "Other": 0,
     "Ponchos": 0,
     "Shirts": 0,
-    "Umbrellas": 0
+    "Umbrellas": 4
   },
-  "generated_at_utc": "2026-09-08T19:10:51.747215Z",
-  "gross_revenue": 0.0,
-  "order_count": 0,
+  "generated_at_utc": "2026-09-08T19:13:50.598057Z",
+  "gross_revenue": 286.2,
+  "order_count": 4,
+  "queried_ship_node_types": [
+    "SellerFulfilled",
+    "WFSFulfilled"
+  ],
   "queried_statuses": [
     "Created",
     "Acknowledged",
     "Shipped",
     "Delivered"
   ],
+  "query_slice_order_counts_before_deduplication": {
+    "SellerFulfilled:Acknowledged": 0,
+    "SellerFulfilled:Created": 0,
+    "SellerFulfilled:Delivered": 0,
+    "SellerFulfilled:Shipped": 0,
+    "WFSFulfilled:Acknowledged": 2,
+    "WFSFulfilled:Created": 0,
+    "WFSFulfilled:Delivered": 0,
+    "WFSFulfilled:Shipped": 2
+  },
   "reconciliation": {
     "revenue_variance": 0.0,
     "unit_variance": 0
   },
   "report_date": "2026-09-07",
   "schema_version": 1,
-  "sku_line_items": [],
+  "sku_line_items": [
+    {
+      "category": "Umbrellas",
+      "gross_revenue": 81.0,
+      "item_name": "Weatherman Umbrella - Golf Lite Umbrella Large Oversize Windproof for Golf Bag Push Cart w/ UV Protection - Waterproof Heavy Duty Umbrellas for Rain Sun - Resists Up to 55 MPH Winds (Black, 66 inch)",
+      "sku": "FBM-14M00-001-00001",
+      "statuses": [
+        "Acknowledged"
+      ],
+      "units": 1
+    },
+    {
+      "category": "Umbrellas",
+      "gross_revenue": 81.0,
+      "item_name": "Weatherman Umbrella - Golf Lite Umbrella Large Oversize Windproof for Golf Bag Push Cart w/ UV Protection - Waterproof Heavy Duty Umbrellas for Rain Sun - Resists Up to 55 MPH Winds (White, 66 inch)",
+      "sku": "FBM-14M00-100-00004",
+      "statuses": [
+        "Acknowledged"
+      ],
+      "units": 1
+    },
+    {
+      "category": "Umbrellas",
+      "gross_revenue": 62.1,
+      "item_name": "Weatherman Travel Umbrellas for Rain - Compact Umbrella Windproof - Small Mini Umbrella - Portable Pocket Umbrella Auto Open Folding Foldable Car Umbrella - Backpack, Purse Rain Umbrellas (Sage)",
+      "sku": "FBM-10001-310-00007",
+      "statuses": [
+        "Shipped"
+      ],
+      "units": 1
+    },
+    {
+      "category": "Umbrellas",
+      "gross_revenue": 62.1,
+      "item_name": "Weatherman Travel Umbrellas for Rain - Compact Umbrella Windproof - Small Mini Umbrella - Portable Pocket Umbrella Auto Open Folding Foldable Car Umbrella - Backpack, Purse Rain Umbrellas (Navy Blue)",
+      "sku": "FBM-10001-600-00003",
+      "statuses": [
+        "Shipped"
+      ],
+      "units": 1
+    }
+  ],
   "source": "Walmart Marketplace Orders API",
   "status": "complete",
-  "status_order_counts_before_deduplication": {
-    "Acknowledged": 0,
-    "Created": 0,
-    "Delivered": 0,
-    "Shipped": 0
-  },
   "timezone": "America/New_York",
-  "total_units": 0,
+  "total_units": 4,
   "window_local": {
     "end_exclusive": "2026-09-08T00:00:00 America/New_York",
     "start_inclusive": "2026-09-07T00:00:00 America/New_York"
