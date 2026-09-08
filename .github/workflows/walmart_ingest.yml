@@ -3,6 +3,11 @@ name: Walmart daily sales relay
 on:
   schedule:
     - cron: "20 14 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/fetch_walmart_sales.py"
+      - ".github/workflows/walmart_ingest.yml"
   workflow_dispatch:
 
 permissions:

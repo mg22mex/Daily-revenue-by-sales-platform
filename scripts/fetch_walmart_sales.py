@@ -23,6 +23,7 @@ ORDERS_URL = "https://marketplace.walmartapis.com/v3/orders"
 OUTPUT_PATH = Path("data/walmart_daily_summary.json")
 ET = ZoneInfo("America/New_York")
 MONEY = Decimal("0.01")
+STATUSES = ("Created", "Acknowledged", "Shipped", "Delivered")
 
 
 def request_json(url: str, *, headers: dict[str, str], data: bytes | None = None, attempts: int = 3) -> dict[str, Any]:
@@ -89,10 +90,15 @@ def access_token(client_id: str, client_secret: str) -> str:
     return str(token)
 
 
-def fetch_orders(token: str, start_utc: datetime, end_utc: datetime) -> list[dict[str, Any]]:
+def order_key(order: dict[str, Any]) -> str:
+    return str(order.get("purchaseOrderId") or order.get("customerOrderId") or json.dumps(order, sort_keys=True))
+
+
+def fetch_orders_for_status(token: str, start_utc: datetime, end_utc: datetime, status: str) -> list[dict[str, Any]]:
     params = {
-        "createdStartDate": start_utc.isoformat().replace("+00:00", "Z"),
-        "createdEndDate": end_utc.isoformat().replace("+00:00", "Z"),
+        "createdStartDate": start_utc.isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "createdEndDate": end_utc.isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "status": status,
         "limit": 200,
     }
     url: str | None = f"{ORDERS_URL}?{urlencode(params)}"
@@ -117,7 +123,20 @@ def fetch_orders(token: str, start_utc: datetime, end_utc: datetime) -> list[dic
     return orders
 
 
-def summarize(orders: list[dict[str, Any]], report_date: str, start_utc: datetime, end_utc: datetime) -> dict[str, Any]:
+def fetch_orders(token: str, start_utc: datetime, end_utc: datetime) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    # Walmart accepts one status per request. Query every reportable lifecycle state,
+    # then deduplicate because an order can surface across status transitions.
+    unique: dict[str, dict[str, Any]] = {}
+    counts: dict[str, int] = {}
+    for status in STATUSES:
+        batch = fetch_orders_for_status(token, start_utc, end_utc, status)
+        counts[status] = len(batch)
+        for order in batch:
+            unique[order_key(order)] = order
+    return list(unique.values()), counts
+
+
+def summarize(orders: list[dict[str, Any]], status_counts: dict[str, int], report_date: str, start_utc: datetime, end_utc: datetime) -> dict[str, Any]:
     skus: dict[str, dict[str, Any]] = {}
     categories: defaultdict[str, int] = defaultdict(int)
     seen_orders: set[str] = set()
@@ -125,9 +144,7 @@ def summarize(orders: list[dict[str, Any]], report_date: str, start_utc: datetim
     total_units = 0
 
     for order in orders:
-        order_key = str(order.get("purchaseOrderId") or order.get("customerOrderId") or "")
-        if order_key:
-            seen_orders.add(order_key)
+        seen_orders.add(order_key(order))
         lines = order.get("orderLines", {}).get("orderLine", [])
         if isinstance(lines, dict):
             lines = [lines]
@@ -175,10 +192,16 @@ def summarize(orders: list[dict[str, Any]], report_date: str, start_utc: datetim
         "status": "complete",
         "report_date": report_date,
         "timezone": "America/New_York",
-        "window_utc": {
-            "start_inclusive": start_utc.isoformat().replace("+00:00", "Z"),
-            "end_exclusive": end_utc.isoformat().replace("+00:00", "Z"),
+        "window_local": {
+            "start_inclusive": f"{report_date}T00:00:00 America/New_York",
+            "end_exclusive": f"{(datetime.fromisoformat(report_date).date() + timedelta(days=1)).isoformat()}T00:00:00 America/New_York",
         },
+        "window_utc": {
+            "start_inclusive": start_utc.isoformat(timespec="seconds").replace("+00:00", "Z"),
+            "end_exclusive": end_utc.isoformat(timespec="seconds").replace("+00:00", "Z"),
+        },
+        "queried_statuses": list(STATUSES),
+        "status_order_counts_before_deduplication": status_counts,
         "generated_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "gross_revenue": float(gross.quantize(MONEY, rounding=ROUND_HALF_UP)),
         "order_count": len(seen_orders),
@@ -207,11 +230,12 @@ def main() -> None:
     today_et = datetime.now(ET).date()
     report_day = today_et - timedelta(days=1)
     start_et = datetime.combine(report_day, datetime.min.time(), tzinfo=ET)
-    end_et = start_et + timedelta(days=1)
+    end_et = datetime.combine(report_day + timedelta(days=1), datetime.min.time(), tzinfo=ET)
     start_utc = start_et.astimezone(timezone.utc)
     end_utc = end_et.astimezone(timezone.utc)
 
-    summary = summarize(fetch_orders(access_token(client_id, client_secret), start_utc, end_utc), report_day.isoformat(), start_utc, end_utc)
+    orders, status_counts = fetch_orders(access_token(client_id, client_secret), start_utc, end_utc)
+    summary = summarize(orders, status_counts, report_day.isoformat(), start_utc, end_utc)
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(f"Wrote Walmart summary for {report_day.isoformat()} ({summary['order_count']} orders)")
