@@ -43,3 +43,5 @@ jobs:
           git add data/walmart_daily_summary.json
           git commit -m "data: refresh Walmart daily summary"
           git push origin HEAD:main
+
+# Manual refresh trigger: 2026-09-09 for report date 2026-09-08
