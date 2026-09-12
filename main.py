@@ -72,7 +72,26 @@ def previous_day_et(now: datetime | None = None) -> date:
     return current.astimezone(ET).date() - timedelta(days=1)
 
 
+def parse_target_date(raw: str | None) -> date | None:
+    """Parse YYYY-MM-DD into a date, or return None when unset/blank."""
+    if raw is None:
+        return None
+    text = raw.strip()
+    if not text:
+        return None
+    try:
+        return date.fromisoformat(text)
+    except ValueError as exc:
+        raise SystemExit(f"Invalid --date / REPORT_DATE {raw!r}; expected YYYY-MM-DD") from exc
+
+
+def resolve_target_date(cli_date: str | None = None) -> date:
+    """CLI --date wins, then REPORT_DATE env, else yesterday America/New_York."""
+    return parse_target_date(cli_date) or parse_target_date(os.getenv("REPORT_DATE")) or previous_day_et()
+
+
 def day_window_et(report_day: date) -> tuple[datetime, datetime]:
+    """Inclusive start / exclusive end for report_day in America/New_York."""
     start = datetime.combine(report_day, datetime.min.time(), tzinfo=ET)
     end = datetime.combine(report_day + timedelta(days=1), datetime.min.time(), tzinfo=ET)
     return start, end
@@ -255,6 +274,12 @@ def _iter_shopify_orders(start: datetime, end: datetime) -> list[dict[str, Any]]
 
 def fetch_shopify_channels(report_day: date) -> tuple[dict[str, PlatformMetrics], dict[str, dict[str, int]], list[SkuRow]]:
     start, end = day_window_et(report_day)
+    log.info(
+        "Shopify window target_date=%s start=%s end_exclusive=%s",
+        report_day.isoformat(),
+        start.isoformat(),
+        end.isoformat(),
+    )
     nodes = _iter_shopify_orders(start, end)
 
     platforms = {
@@ -393,6 +418,12 @@ def fetch_walmart(report_day: date) -> tuple[PlatformMetrics, dict[str, int], li
     start_et, end_et = day_window_et(report_day)
     start_utc = start_et.astimezone(timezone.utc)
     end_utc = end_et.astimezone(timezone.utc)
+    log.info(
+        "Walmart window target_date=%s createdStartDate=%s createdEndDate=%s",
+        report_day.isoformat(),
+        start_utc.isoformat().replace("+00:00", "Z"),
+        end_utc.isoformat().replace("+00:00", "Z"),
+    )
     token = _walmart_access_token(env["WALMART_CLIENT_ID"], env["WALMART_CLIENT_SECRET"])
 
     unique: dict[str, dict[str, Any]] = {}
@@ -717,11 +748,13 @@ def snapshot_day(report: DailyReport) -> dict[str, Any]:
     }
 
 
-def build_period_cards(report: DailyReport, archive: dict[str, Any]) -> list[PeriodCard]:
-    day = report.report_day
-    days = archive.get("days", {})
-    days[day.isoformat()] = snapshot_day(report)
+def build_period_cards(report: DailyReport, days: dict[str, Any]) -> list[PeriodCard]:
+    """MTD / forecast / last-month cards from archive days through target_date.
 
+    ``days`` must already contain the snapshot to use for ``target_date``
+    (caller upserts that key before calling).
+    """
+    day = report.target_date
     month_prefix = day.strftime("%Y-%m")
     month_rows = [v for k, v in days.items() if k.startswith(month_prefix) and k <= day.isoformat()]
     mtd_revenue = sum(Decimal(str(r.get("total_revenue", 0))) for r in month_rows)
@@ -739,7 +772,9 @@ def build_period_cards(report: DailyReport, archive: dict[str, Any]) -> list[Per
 
     walmart_dates = sorted(
         k for k, v in days.items()
-        if k.startswith(month_prefix) and (v.get("platforms") or {}).get("walmart", {}).get("available")
+        if k.startswith(month_prefix)
+        and k <= day.isoformat()
+        and (v.get("platforms") or {}).get("walmart", {}).get("available")
     )
     if walmart_dates:
         start_d = datetime.fromisoformat(walmart_dates[0])
@@ -749,12 +784,16 @@ def build_period_cards(report: DailyReport, archive: dict[str, Any]) -> list[Per
         coverage = "Walmart coverage pending"
 
     last_month_name = last_month_date.strftime("%b")
+    day_snap = days.get(day.isoformat()) or snapshot_day(report)
+    day_revenue = Decimal(str(day_snap.get("total_revenue", report.total_revenue())))
+    day_units = int(day_snap.get("total_units", report.total_units()))
+    day_label = "Yesterday" if day == previous_day_et() else f"{day.strftime('%b')} {day.day}"
     return [
         PeriodCard(
-            key="yesterday",
-            label="Yesterday",
-            revenue=report.total_revenue(),
-            subtitle=f"{report.total_units()} units",
+            key="report_day",
+            label=day_label,
+            revenue=day_revenue,
+            subtitle=f"{day_units} units",
             color="#3F51B5",
         ),
         PeriodCard(
@@ -900,13 +939,38 @@ def assemble_report(report_day: date) -> DailyReport:
         dashboard_url=dashboard_public_url(report_day),
         greeting_name=os.environ.get("REPORT_GREETING_NAME", "Rick").strip() or "Rick",
     )
-
-    archive = load_archive()
-    report.period_cards = build_period_cards(report, archive)
-    archive.setdefault("days", {})[report_day.isoformat()] = snapshot_day(report)
-    save_archive(archive)
     _ = daily_df  # reserved for future MTD enrichment from Sellerboard history
     return report
+
+
+def upsert_daily_archive(report: DailyReport) -> None:
+    """Insert/overwrite target_date in data/daily_archive.json and refresh period cards."""
+    archive = load_archive()
+    key = report.target_date.isoformat()
+    days = dict(archive.get("days") or {})
+    prior = days.get(key)
+    any_ok = any(p.available for p in report.platforms.values())
+    snap = snapshot_day(report)
+
+    if prior and not any_ok and float(prior.get("total_revenue") or 0) > 0:
+        log.warning(
+            "Archive upsert skipped for %s — all channels unavailable and prior revenue exists",
+            key,
+        )
+        days[key] = prior
+        report.period_cards = build_period_cards(report, days)
+        archive["days"] = days
+        save_archive(archive)
+        return
+
+    days[key] = snap
+    report.period_cards = build_period_cards(report, days)
+    archive["days"] = days
+    save_archive(archive)
+    if prior:
+        log.info("Archive upsert: overwrote existing entry for %s", key)
+    else:
+        log.info("Archive upsert: inserted new entry for %s", key)
 
 
 def build_demo_report(report_day: date | None = None) -> DailyReport:
@@ -1057,17 +1121,24 @@ def env_flag(name: str) -> bool:
     return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
 
 
-def run(demo: bool = False, skip_email: bool = False) -> int:
-    report_day = previous_day_et()
+def run(demo: bool = False, skip_email: bool = False, target_date: date | None = None) -> int:
+    report_day = target_date or resolve_target_date()
     skip_email = skip_email or env_flag("SKIP_EMAIL")
     log.info(
-        "Building daily revenue report for %s (skip_email=%s)",
-        "demo/2026-09-10" if demo else report_day.isoformat(),
+        "Building daily revenue report for target_date=%s (demo=%s skip_email=%s)",
+        "demo/2026-09-10" if demo and target_date is None else report_day.isoformat(),
+        demo,
         skip_email,
     )
 
-    report = build_demo_report() if demo else assemble_report(report_day)
+    if demo:
+        report = build_demo_report(report_day if target_date is not None else None)
+    else:
+        report = assemble_report(report_day)
     report.dashboard_url = dashboard_public_url(report.report_day)
+
+    # Persist/refresh archive + period cards for this target_date (backfill-safe upsert).
+    upsert_daily_archive(report)
 
     dated, latest = write_dashboard(report, DOCS_DIR)
     log.info("Wrote dashboard %s and %s", dated, latest)
@@ -1112,6 +1183,12 @@ def run(demo: bool = False, skip_email: bool = False) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Daily revenue report pipeline")
+    parser.add_argument(
+        "--date",
+        dest="target_date",
+        metavar="YYYY-MM-DD",
+        help="Target report date (America/New_York calendar day). Defaults to yesterday.",
+    )
     parser.add_argument("--demo", action="store_true", help="Render Image 1/2 sample data without APIs")
     parser.add_argument(
         "--skip-email",
@@ -1119,7 +1196,11 @@ def main() -> None:
         help="Run live ingestion + docs/archive generation but do not call Brevo",
     )
     args = parser.parse_args()
-    sys.exit(run(demo=args.demo, skip_email=args.skip_email))
+    target = parse_target_date(args.target_date)
+    # When --date omitted, resolve_target_date() still honors REPORT_DATE env.
+    if target is None and not args.demo:
+        target = resolve_target_date()
+    sys.exit(run(demo=args.demo, skip_email=args.skip_email, target_date=target))
 
 
 if __name__ == "__main__":

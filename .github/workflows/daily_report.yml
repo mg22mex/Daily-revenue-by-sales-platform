@@ -11,6 +11,11 @@ on:
         required: true
         type: boolean
         default: false
+      target_date:
+        description: 'Report date YYYY-MM-DD (empty = yesterday ET)'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: write
@@ -60,7 +65,13 @@ jobs:
           # Manual runs: skip email when send_email is false.
           # Scheduled runs have no inputs → expression is false → email sends.
           SKIP_EMAIL: ${{ github.event.inputs.send_email == 'false' }}
-        run: python main.py
+          REPORT_DATE: ${{ github.event.inputs.target_date }}
+        run: |
+          if [ -n "${{ github.event.inputs.target_date }}" ]; then
+            python main.py --date "${{ github.event.inputs.target_date }}"
+          else
+            python main.py
+          fi
 
       - name: Commit dashboard + archive artifacts
         run: |
