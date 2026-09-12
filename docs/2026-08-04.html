@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Daily Revenue Dashboard · August 4, 2026</title>
+  <style>
+    :root {
+      --navy: #0B192C;
+      --bg: #F3F5F7;
+      --card: #ffffff;
+      --text: #1F2937;
+      --muted: #6B7280;
+      --blue: #3F51B5;
+      --teal: #0F766E;
+      --teal-mid: #14919B;
+      --green: #2E7D32;
+      --status-bg: #E6F4EA;
+      --status-fg: #137333;
+      --border: #E5E7EB;
+      --accent-bar: #5C6BC0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .header {
+      background: var(--navy);
+      color: #fff;
+      padding: 22px 28px 20px;
+    }
+    .brand {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      font-weight: 700;
+      opacity: 0.95;
+    }
+    .header h1 {
+      margin: 8px 0 6px;
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .header .sub {
+      font-size: 13px;
+      opacity: 0.85;
+    }
+    .status {
+      background: var(--status-bg);
+      color: var(--status-fg);
+      padding: 10px 28px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .wrap {
+      padding: 20px 24px 40px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .section-label {
+      margin: 18px 0 10px;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .period-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .period-card {
+      border-radius: 10px;
+      padding: 18px 16px;
+      color: #fff;
+      min-height: 110px;
+    }
+    .period-label {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 700;
+      opacity: 0.9;
+    }
+    .period-value {
+      margin-top: 10px;
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .period-sub {
+      margin-top: 6px;
+      font-size: 12px;
+      opacity: 0.9;
+    }
+    .platform-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .ad-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .metric-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-top: 3px solid var(--accent-bar);
+      border-radius: 10px;
+      padding: 14px 14px 16px;
+      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    }
+    .metric-label {
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .metric-value {
+      margin-top: 8px;
+      font-size: 24px;
+      font-weight: 700;
+      color: #1a237e;
+    }
+    .metric-sub {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .tables {
+      display: grid;
+      grid-template-columns: 1fr 1.6fr;
+      gap: 14px;
+    }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    }
+    .panel h3 {
+      margin: 0;
+      padding: 12px 14px;
+      font-size: 13px;
+      background: #EEF2F7;
+      border-bottom: 1px solid var(--border);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #F8FAFC;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    td.num, th.num { text-align: right; white-space: nowrap; }
+    td.empty { color: var(--muted); text-align: center; padding: 18px; }
+    .sku-panel { margin-top: 8px; }
+    @media (max-width: 1100px) {
+      .period-grid, .platform-grid, .ad-grid, .tables {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    @media (max-width: 700px) {
+      .period-grid, .platform-grid, .ad-grid, .tables {
+        grid-template-columns: 1fr;
+      }
+      .wrap { padding: 14px; }
+      .header, .status { padding-left: 14px; padding-right: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="brand">WEATHERMAN</div>
+    <h1>Daily Revenue Dashboard</h1>
+    <div class="sub">Amazon + Shopify Direct + DICK&#x27;S SPORTING GOODS + NORDSTROM + Walmart · August 4, 2026</div>
+  </header>
+  <div class="status">✓ Walmart exact-date relay complete · Sellerboard revenue and units reconciled · Shopify Direct + DSG + Nordstrom variance $0.00 / 0 units · Demo backfill synthetic day 2026-08-04</div>
+
+  <main class="wrap">
+    <div class="period-grid">
+      
+            <div class="period-card" style="background:#3F51B5;">
+              <div class="period-label">Aug 4</div>
+              <div class="period-value">$13,530.00</div>
+              <div class="period-sub">233 units</div>
+            </div>
+            
+            <div class="period-card" style="background:#0F766E;">
+              <div class="period-label">Month to Date</div>
+              <div class="period-value">$52,885.00</div>
+              <div class="period-sub">910 units · Walmart Aug 1–4 coverage</div>
+            </div>
+            
+            <div class="period-card" style="background:#14919B;">
+              <div class="period-label">This Month Forecast</div>
+              <div class="period-value">$409,858.75</div>
+              <div class="period-sub">4 of 31 days complete</div>
+            </div>
+            
+            <div class="period-card" style="background:#2E7D32;">
+              <div class="period-label">Last Month</div>
+              <div class="period-value">$0.00</div>
+              <div class="period-sub">0 units · validated Jul archive</div>
+            </div>
+            
+    </div>
+
+    <div class="section-label">Sales platform performance</div>
+    <div class="platform-grid">
+      
+            <div class="metric-card">
+              <div class="metric-label">Amazon REVENUE</div>
+              <div class="metric-value">$10,080.00</div>
+              <div class="metric-sub">168 units · Real ACOS 18.50%</div>
+            </div>
+            
+            <div class="metric-card">
+              <div class="metric-label">Shopify Direct REVENUE</div>
+              <div class="metric-value">$2,900.00</div>
+              <div class="metric-sub">58 units · 32 orders</div>
+            </div>
+            
+            <div class="metric-card">
+              <div class="metric-label">DICK&#x27;S SPORTING GOODS REVENUE</div>
+              <div class="metric-value">$0.00</div>
+              <div class="metric-sub">0 units · 0 orders</div>
+            </div>
+            
+            <div class="metric-card">
+              <div class="metric-label">NORDSTROM REVENUE</div>
+              <div class="metric-value">$200.00</div>
+              <div class="metric-sub">2 units · 2 orders</div>
+            </div>
+            
+            <div class="metric-card">
+              <div class="metric-label">Walmart REVENUE</div>
+              <div class="metric-value">$350.00</div>
+              <div class="metric-sub">5 units · 5 orders · Exact-date relay</div>
+            </div>
+            
+    </div>
+
+    <div class="section-label">Ad metrics &amp; reconciliation</div>
+    <div class="ad-grid">
+      
+      <div class="metric-card">
+        <div class="metric-label">SHOPIFY BLENDED COST OF SALES</div>
+        <div class="metric-value">41.29%</div>
+        <div class="metric-sub">Ad spend ÷ Shopify order revenue · lower is better</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">SHOPIFY REVENUE PER AD DOLLAR</div>
+        <div class="metric-value">2.42x</div>
+        <div class="metric-sub">Shopify order revenue ÷ ad spend · higher is better</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">SHOPIFY AD SPEND</div>
+        <div class="metric-value">$1,280.00</div>
+        <div class="metric-sub">Amazon excluded</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">SHOPIFY RECONCILIATION</div>
+        <div class="metric-value">$0.00</div>
+        <div class="metric-sub">Direct + DSG + Nordstrom variance · 0 units</div>
+      </div>
+    
+    </div>
+
+    <div class="section-label">Category unit performance</div>
+    <div class="tables">
+      <div class="panel">
+        <h3>All-platform category unit totals</h3>
+        <table>
+          <thead><tr><th>Category</th><th class="num">Total</th></tr></thead>
+          <tbody>
+            <tr><td>Total umbrellas sold</td><td class='num'>231</td></tr><tr><td>Backpack</td><td class='num'>0</td></tr><tr><td>Poncho</td><td class='num'>2</td></tr><tr><td>Hat</td><td class='num'>0</td></tr><tr><td>Shirts</td><td class='num'>0</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <h3>Category units by platform</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th>Amazon</th><th>Shopify Direct</th><th>DSG</th><th>Nordstrom</th><th>Walmart</th>
+              <th class="num">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Total umbrellas sold</td><td class='num'>167</td><td class='num'>57</td><td class='num'>0</td><td class='num'>1</td><td class='num'>4</td><td class='num'>229</td></tr><tr><td>Backpack</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td></tr><tr><td>Poncho</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td></tr><tr><td>Hat</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td></tr><tr><td>Shirts</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section-label">SKU drilldown · five channels</div>
+    <div class="panel sku-panel">
+      <table>
+        <thead>
+          <tr>
+            <th>Platform</th>
+            <th>SKU</th>
+            <th>Item</th>
+            <th class="num">Units</th>
+            <th class="num">Revenue</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan='5' class='empty'>No SKU rows available for this report date.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</body>
+</html>

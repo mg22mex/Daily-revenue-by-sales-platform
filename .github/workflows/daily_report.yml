@@ -16,6 +16,16 @@ on:
         required: false
         type: string
         default: ''
+      backfill:
+        description: 'Backfill archive (prior month start → target_date) + seed baseline'
+        required: true
+        type: boolean
+        default: false
+      force_backfill:
+        description: 'Re-fetch days that already exist in the archive'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -62,25 +72,30 @@ jobs:
           SHOPIFY_AD_SPEND: ${{ secrets.SHOPIFY_AD_SPEND }}
           DASHBOARD_PUBLIC_URL: ${{ secrets.DASHBOARD_PUBLIC_URL }}
           REPORT_GREETING_NAME: ${{ secrets.REPORT_GREETING_NAME }}
-          # Manual runs: skip email when send_email is false.
-          # Scheduled runs have no inputs → expression is false → email sends.
           SKIP_EMAIL: ${{ github.event.inputs.send_email == 'false' }}
           REPORT_DATE: ${{ github.event.inputs.target_date }}
         run: |
+          ARGS=()
           if [ -n "${{ github.event.inputs.target_date }}" ]; then
-            python main.py --date "${{ github.event.inputs.target_date }}"
-          else
-            python main.py
+            ARGS+=(--date "${{ github.event.inputs.target_date }}")
           fi
+          if [ "${{ github.event.inputs.backfill }}" = "true" ]; then
+            ARGS+=(--backfill --skip-email)
+            if [ "${{ github.event.inputs.force_backfill }}" = "true" ]; then
+              ARGS+=(--force)
+            fi
+          fi
+          echo "Running: python main.py ${ARGS[*]}"
+          python main.py "${ARGS[@]}"
 
       - name: Commit dashboard + archive artifacts
         run: |
-          if git diff --quiet -- docs data/daily_archive.json; then
+          if git diff --quiet -- docs data/daily_archive.json data/shopify_ad_spend.json; then
             echo "No dashboard/archive changes to commit"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs data/daily_archive.json
+          git add docs data/daily_archive.json data/shopify_ad_spend.json
           git commit -m "data: refresh daily revenue dashboard"
           git push origin HEAD:main

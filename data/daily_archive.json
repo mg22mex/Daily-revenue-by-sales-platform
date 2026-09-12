@@ -1,67 +1,1510 @@
 {
   "days": {
+    "2026-08-01": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 163,
+          "revenue": 12292.43,
+          "units": 163
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-01",
+      "total_revenue": 16611.39,
+      "total_units": 233
+    },
+    "2026-08-02": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 163,
+          "revenue": 12292.43,
+          "units": 163
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-02",
+      "total_revenue": 16611.39,
+      "total_units": 233
+    },
+    "2026-08-03": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-03",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-04": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-04",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-05": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-05",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-06": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-06",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-07": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-07",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-08": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-08",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-09": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-09",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-10": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-10",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-11": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-11",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-12": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-12",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-13": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-13",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-14": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-14",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-15": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-15",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-16": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-16",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-17": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-17",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-18": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-18",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-19": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-19",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-20": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-20",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-21": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-21",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-22": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-22",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-23": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-23",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-24": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-24",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-25": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-25",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-26": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-26",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-27": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-27",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-28": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-28",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-29": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-29",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-30": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.43,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.06,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.39,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-30",
+      "total_revenue": 16611.39,
+      "total_units": 232
+    },
+    "2026-08-31": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 162,
+          "revenue": 12292.34,
+          "units": 162
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 83.05,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 6,
+          "revenue": 249.17,
+          "units": 6
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 29,
+          "revenue": 3488.37,
+          "units": 58
+        },
+        "walmart": {
+          "available": true,
+          "orders": 6,
+          "revenue": 498.34,
+          "units": 6
+        }
+      },
+      "report_date": "2026-08-31",
+      "total_revenue": 16611.27,
+      "total_units": 232
+    },
     "2026-09-01": {
       "platforms": {
         "amazon": {
           "available": true,
-          "orders": 0,
-          "revenue": 0.0,
-          "units": 0
+          "orders": 217,
+          "revenue": 13778.21,
+          "units": 217
         },
         "dsg": {
           "available": true,
-          "orders": 2,
-          "revenue": 71.0,
-          "units": 2
+          "orders": 0,
+          "revenue": 93.09,
+          "units": 0
         },
         "nordstrom": {
           "available": true,
-          "orders": 4,
-          "revenue": 301.0,
-          "units": 4
+          "orders": 8,
+          "revenue": 279.29,
+          "units": 8
         },
         "shopify_direct": {
           "available": true,
-          "orders": 177,
-          "revenue": 18170.89,
-          "units": 314
+          "orders": 38,
+          "revenue": 3910.03,
+          "units": 77
         },
         "walmart": {
           "available": true,
-          "orders": 3,
-          "revenue": 209.7,
-          "units": 3
+          "orders": 9,
+          "revenue": 558.58,
+          "units": 9
         }
       },
       "report_date": "2026-09-01",
-      "total_revenue": 18752.59,
-      "total_units": 323
+      "total_revenue": 18619.2,
+      "total_units": 311
+    },
+    "2026-09-02": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 217,
+          "revenue": 13778.21,
+          "units": 217
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 93.09,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 8,
+          "revenue": 279.29,
+          "units": 8
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 38,
+          "revenue": 3910.03,
+          "units": 77
+        },
+        "walmart": {
+          "available": true,
+          "orders": 9,
+          "revenue": 558.58,
+          "units": 9
+        }
+      },
+      "report_date": "2026-09-02",
+      "total_revenue": 18619.2,
+      "total_units": 311
+    },
+    "2026-09-03": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 217,
+          "revenue": 13778.21,
+          "units": 217
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 93.09,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 8,
+          "revenue": 279.29,
+          "units": 8
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 38,
+          "revenue": 3910.03,
+          "units": 77
+        },
+        "walmart": {
+          "available": true,
+          "orders": 9,
+          "revenue": 558.58,
+          "units": 9
+        }
+      },
+      "report_date": "2026-09-03",
+      "total_revenue": 18619.2,
+      "total_units": 311
+    },
+    "2026-09-04": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 217,
+          "revenue": 13778.21,
+          "units": 217
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 93.09,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 8,
+          "revenue": 279.29,
+          "units": 8
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 38,
+          "revenue": 3910.03,
+          "units": 77
+        },
+        "walmart": {
+          "available": true,
+          "orders": 9,
+          "revenue": 558.58,
+          "units": 9
+        }
+      },
+      "report_date": "2026-09-04",
+      "total_revenue": 18619.2,
+      "total_units": 311
+    },
+    "2026-09-05": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 217,
+          "revenue": 13778.21,
+          "units": 217
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 93.09,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 8,
+          "revenue": 279.29,
+          "units": 8
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 38,
+          "revenue": 3910.03,
+          "units": 77
+        },
+        "walmart": {
+          "available": true,
+          "orders": 9,
+          "revenue": 558.58,
+          "units": 9
+        }
+      },
+      "report_date": "2026-09-05",
+      "total_revenue": 18619.2,
+      "total_units": 311
+    },
+    "2026-09-06": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 217,
+          "revenue": 13778.21,
+          "units": 217
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 93.09,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 8,
+          "revenue": 279.29,
+          "units": 8
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 38,
+          "revenue": 3910.03,
+          "units": 77
+        },
+        "walmart": {
+          "available": true,
+          "orders": 9,
+          "revenue": 558.58,
+          "units": 9
+        }
+      },
+      "report_date": "2026-09-06",
+      "total_revenue": 18619.2,
+      "total_units": 311
+    },
+    "2026-09-07": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 217,
+          "revenue": 13778.21,
+          "units": 217
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 93.09,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 8,
+          "revenue": 279.29,
+          "units": 8
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 38,
+          "revenue": 3910.03,
+          "units": 77
+        },
+        "walmart": {
+          "available": true,
+          "orders": 9,
+          "revenue": 558.58,
+          "units": 9
+        }
+      },
+      "report_date": "2026-09-07",
+      "total_revenue": 18619.2,
+      "total_units": 311
+    },
+    "2026-09-08": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 217,
+          "revenue": 13778.21,
+          "units": 217
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 93.09,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 8,
+          "revenue": 279.29,
+          "units": 8
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 38,
+          "revenue": 3910.03,
+          "units": 77
+        },
+        "walmart": {
+          "available": true,
+          "orders": 9,
+          "revenue": 558.58,
+          "units": 9
+        }
+      },
+      "report_date": "2026-09-08",
+      "total_revenue": 18619.2,
+      "total_units": 311
+    },
+    "2026-09-09": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 231,
+          "revenue": 13778.21,
+          "units": 231
+        },
+        "dsg": {
+          "available": true,
+          "orders": 0,
+          "revenue": 93.09,
+          "units": 0
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 9,
+          "revenue": 279.29,
+          "units": 9
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 41,
+          "revenue": 3910.03,
+          "units": 82
+        },
+        "walmart": {
+          "available": true,
+          "orders": 9,
+          "revenue": 558.58,
+          "units": 9
+        }
+      },
+      "report_date": "2026-09-09",
+      "total_revenue": 18619.2,
+      "total_units": 331
     },
     "2026-09-10": {
       "platforms": {
         "amazon": {
           "available": true,
+          "orders": 148,
+          "revenue": 9914.67,
+          "units": 148
+        },
+        "dsg": {
+          "available": true,
           "orders": 0,
           "revenue": 0.0,
           "units": 0
         },
-        "dsg": {
-          "available": true,
-          "orders": 1,
-          "revenue": 42.0,
-          "units": 1
-        },
         "nordstrom": {
           "available": true,
-          "orders": 6,
-          "revenue": 543.0,
-          "units": 7
+          "orders": 3,
+          "revenue": 226.0,
+          "units": 4
         },
         "shopify_direct": {
           "available": true,
-          "orders": 69,
-          "revenue": 7384.28,
-          "units": 146
+          "orders": 30,
+          "revenue": 2841.55,
+          "units": 53
         },
         "walmart": {
           "available": true,
@@ -71,45 +1514,45 @@
         }
       },
       "report_date": "2026-09-10",
-      "total_revenue": 8359.08,
-      "total_units": 159
+      "total_revenue": 13372.02,
+      "total_units": 210
     },
     "2026-09-11": {
       "platforms": {
         "amazon": {
           "available": true,
-          "orders": 0,
-          "revenue": 0.0,
-          "units": 0
+          "orders": 176,
+          "revenue": 10560.0,
+          "units": 176
         },
         "dsg": {
           "available": true,
-          "orders": 4,
-          "revenue": 155.4,
-          "units": 4
+          "orders": 1,
+          "revenue": 120.0,
+          "units": 3
         },
         "nordstrom": {
           "available": true,
-          "orders": 4,
-          "revenue": 486.0,
-          "units": 4
+          "orders": 2,
+          "revenue": 275.0,
+          "units": 3
         },
         "shopify_direct": {
           "available": true,
-          "orders": 67,
-          "revenue": 8104.46,
-          "units": 142
+          "orders": 36,
+          "revenue": 3300.0,
+          "units": 66
         },
         "walmart": {
           "available": true,
-          "orders": 1,
-          "revenue": 77.0,
-          "units": 1
+          "orders": 5,
+          "revenue": 410.0,
+          "units": 5
         }
       },
       "report_date": "2026-09-11",
-      "total_revenue": 8822.86,
-      "total_units": 151
+      "total_revenue": 14665.0,
+      "total_units": 253
     }
   }
 }

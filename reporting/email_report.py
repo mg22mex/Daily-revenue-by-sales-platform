@@ -40,8 +40,8 @@ def build_email_html(report: DailyReport) -> str:
     ad_block = "<br>\n".join(
         [
             f"Amazon Real ACOS: {pct_str(ads.amazon_real_acos, unavailable=ads.amazon_real_acos is None)}",
-            f"Shopify Blended Cost of Sales: {pct_str(ads.shopify_blended_cos, unavailable=ads.shopify_blended_cos is None)}",
-            f"Shopify Revenue per Ad Dollar: {mult_str(ads.shopify_revenue_per_ad_dollar, unavailable=ads.shopify_revenue_per_ad_dollar is None)}",
+            f"Shopify Blended Cost of Sales: {pct_str(ads.shopify_blended_cos if ads.shopify_blended_cos is not None else 0)}",
+            f"Shopify Revenue per Ad Dollar: {mult_str(ads.shopify_revenue_per_ad_dollar if ads.shopify_revenue_per_ad_dollar is not None else 0)}",
         ]
     )
 

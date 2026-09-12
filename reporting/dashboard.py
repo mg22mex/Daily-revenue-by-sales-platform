@@ -4,6 +4,7 @@ from __future__ import annotations
 import html
 import logging
 import shutil
+from decimal import Decimal
 from pathlib import Path
 
 from reporting.models import (
@@ -80,17 +81,17 @@ def build_dashboard_html(report: DailyReport) -> str:
     ad_cards = f"""
       <div class="metric-card">
         <div class="metric-label">SHOPIFY BLENDED COST OF SALES</div>
-        <div class="metric-value">{_esc(pct_str(ads.shopify_blended_cos, unavailable=ads.shopify_blended_cos is None))}</div>
+        <div class="metric-value">{_esc(pct_str(ads.shopify_blended_cos if ads.shopify_blended_cos is not None else Decimal('0')))}</div>
         <div class="metric-sub">Ad spend ÷ Shopify order revenue · lower is better</div>
       </div>
       <div class="metric-card">
         <div class="metric-label">SHOPIFY REVENUE PER AD DOLLAR</div>
-        <div class="metric-value">{_esc(mult_str(ads.shopify_revenue_per_ad_dollar, unavailable=ads.shopify_revenue_per_ad_dollar is None))}</div>
+        <div class="metric-value">{_esc(mult_str(ads.shopify_revenue_per_ad_dollar if ads.shopify_revenue_per_ad_dollar is not None else Decimal('0')))}</div>
         <div class="metric-sub">Shopify order revenue ÷ ad spend · higher is better</div>
       </div>
       <div class="metric-card">
         <div class="metric-label">SHOPIFY AD SPEND</div>
-        <div class="metric-value">{_esc(money_str(ads.shopify_ad_spend, unavailable=ads.shopify_ad_spend is None))}</div>
+        <div class="metric-value">{_esc(money_str(ads.shopify_ad_spend if ads.shopify_ad_spend is not None else Decimal('0')))}</div>
         <div class="metric-sub">Amazon excluded</div>
       </div>
       <div class="metric-card">
