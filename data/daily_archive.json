@@ -4,9 +4,9 @@
       "platforms": {
         "amazon": {
           "available": true,
-          "orders": 4572,
-          "revenue": 266535.22000000003,
-          "units": 4572
+          "orders": 0,
+          "revenue": 0.0,
+          "units": 0
         },
         "dsg": {
           "available": true,
@@ -34,8 +34,8 @@
         }
       },
       "report_date": "2026-09-11",
-      "total_revenue": 274796.91000000003,
-      "total_units": 4715
+      "total_revenue": 8261.69,
+      "total_units": 143
     }
   }
 }
