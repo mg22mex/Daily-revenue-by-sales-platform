@@ -59,9 +59,9 @@
         },
         "shopify_direct": {
           "available": true,
-          "orders": 66,
-          "revenue": 7839.48,
-          "units": 138
+          "orders": 67,
+          "revenue": 8104.46,
+          "units": 142
         },
         "walmart": {
           "available": true,
@@ -71,8 +71,8 @@
         }
       },
       "report_date": "2026-09-11",
-      "total_revenue": 8557.88,
-      "total_units": 147
+      "total_revenue": 8822.86,
+      "total_units": 151
     }
   }
 }
