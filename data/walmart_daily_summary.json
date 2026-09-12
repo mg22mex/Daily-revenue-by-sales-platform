@@ -4,11 +4,11 @@
     "Other": 0,
     "Ponchos": 0,
     "Shirts": 0,
-    "Umbrellas": 5
+    "Umbrellas": 1
   },
-  "generated_at_utc": "2026-09-11T17:45:45.928998Z",
-  "gross_revenue": 389.8,
-  "order_count": 5,
+  "generated_at_utc": "2026-09-12T15:47:32.633940Z",
+  "gross_revenue": 77.0,
+  "order_count": 1,
   "queried_ship_node_types": [
     "SellerFulfilled",
     "WFSFulfilled"
@@ -24,63 +24,23 @@
     "SellerFulfilled:Created": 0,
     "SellerFulfilled:Delivered": 0,
     "SellerFulfilled:Shipped": 0,
-    "WFSFulfilled:Acknowledged": 3,
+    "WFSFulfilled:Acknowledged": 0,
     "WFSFulfilled:Created": 0,
     "WFSFulfilled:Delivered": 0,
-    "WFSFulfilled:Shipped": 2
+    "WFSFulfilled:Shipped": 1
   },
   "reconciliation": {
     "revenue_variance": 0.0,
     "unit_variance": 0
   },
-  "report_date": "2026-09-10",
+  "report_date": "2026-09-11",
   "schema_version": 1,
   "sku_line_items": [
     {
       "category": "Umbrellas",
-      "gross_revenue": 91.0,
-      "item_name": "Weatherman Golf Umbrella Auto Open Fiberglass 66 Inches (Black)",
-      "sku": "FBM-14M00-001-00001",
-      "statuses": [
-        "Acknowledged"
-      ],
-      "units": 1
-    },
-    {
-      "category": "Umbrellas",
-      "gross_revenue": 90.0,
-      "item_name": "Weatherman Umbrella - Golf Lite Umbrella Large Oversize Windproof for Golf Bag Push Cart w/ UV Protection - Waterproof Heavy Duty Umbrellas for Rain Sun - Resists Up to 55 MPH Winds (White, 66 inch)",
-      "sku": "FBM-14M00-100-00004",
-      "statuses": [
-        "Acknowledged"
-      ],
-      "units": 1
-    },
-    {
-      "category": "Umbrellas",
-      "gross_revenue": 75.6,
-      "item_name": "Weatherman Umbrella - Stick Umbrella - Windproof Umbrella Resists Up to 55 MPH Winds (Navy Blue)",
-      "sku": "11005-600-221-55",
-      "statuses": [
-        "Acknowledged"
-      ],
-      "units": 1
-    },
-    {
-      "category": "Umbrellas",
-      "gross_revenue": 66.6,
+      "gross_revenue": 77.0,
       "item_name": "Weatherman Collapsible Travel Umbrella Auto Open 40 Inches (Black)",
       "sku": "FBM-12005-001-221-51",
-      "statuses": [
-        "Shipped"
-      ],
-      "units": 1
-    },
-    {
-      "category": "Umbrellas",
-      "gross_revenue": 66.6,
-      "item_name": "Weatherman Umbrella - Collapsible Umbrella - Windproof Umbrella Resists Up to 55 MPH Winds (Navy Blue)",
-      "sku": "FBM-12005-600-221-51",
       "statuses": [
         "Shipped"
       ],
@@ -90,13 +50,13 @@
   "source": "Walmart Marketplace Orders API",
   "status": "complete",
   "timezone": "America/New_York",
-  "total_units": 5,
+  "total_units": 1,
   "window_local": {
-    "end_exclusive": "2026-09-11T00:00:00 America/New_York",
-    "start_inclusive": "2026-09-10T00:00:00 America/New_York"
+    "end_exclusive": "2026-09-12T00:00:00 America/New_York",
+    "start_inclusive": "2026-09-11T00:00:00 America/New_York"
   },
   "window_utc": {
-    "end_exclusive": "2026-09-11T04:00:00Z",
-    "start_inclusive": "2026-09-10T04:00:00Z"
+    "end_exclusive": "2026-09-12T04:00:00Z",
+    "start_inclusive": "2026-09-11T04:00:00Z"
   }
 }
