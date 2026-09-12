@@ -1,5 +1,42 @@
 {
   "days": {
+    "2026-09-01": {
+      "platforms": {
+        "amazon": {
+          "available": true,
+          "orders": 0,
+          "revenue": 0.0,
+          "units": 0
+        },
+        "dsg": {
+          "available": true,
+          "orders": 2,
+          "revenue": 71.0,
+          "units": 2
+        },
+        "nordstrom": {
+          "available": true,
+          "orders": 4,
+          "revenue": 301.0,
+          "units": 4
+        },
+        "shopify_direct": {
+          "available": true,
+          "orders": 177,
+          "revenue": 18170.89,
+          "units": 314
+        },
+        "walmart": {
+          "available": true,
+          "orders": 3,
+          "revenue": 209.7,
+          "units": 3
+        }
+      },
+      "report_date": "2026-09-01",
+      "total_revenue": 18752.59,
+      "total_units": 323
+    },
     "2026-09-10": {
       "platforms": {
         "amazon": {
