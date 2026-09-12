@@ -6,7 +6,7 @@
     "Shirts": 0,
     "Umbrellas": 1
   },
-  "generated_at_utc": "2026-09-12T15:47:32.633940Z",
+  "generated_at_utc": "2026-09-12T17:12:18.409617Z",
   "gross_revenue": 77.0,
   "order_count": 1,
   "queried_ship_node_types": [
@@ -26,8 +26,8 @@
     "SellerFulfilled:Shipped": 0,
     "WFSFulfilled:Acknowledged": 0,
     "WFSFulfilled:Created": 0,
-    "WFSFulfilled:Delivered": 0,
-    "WFSFulfilled:Shipped": 1
+    "WFSFulfilled:Delivered": 1,
+    "WFSFulfilled:Shipped": 0
   },
   "reconciliation": {
     "revenue_variance": 0.0,
@@ -42,7 +42,7 @@
       "item_name": "Weatherman Collapsible Travel Umbrella Auto Open 40 Inches (Black)",
       "sku": "FBM-12005-001-221-51",
       "statuses": [
-        "Shipped"
+        "Delivered"
       ],
       "units": 1
     }
