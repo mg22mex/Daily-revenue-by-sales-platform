@@ -53,15 +53,15 @@
         },
         "nordstrom": {
           "available": true,
-          "orders": 3,
-          "revenue": 317.0,
-          "units": 3
+          "orders": 4,
+          "revenue": 486.0,
+          "units": 4
         },
         "shopify_direct": {
           "available": true,
-          "orders": 65,
-          "revenue": 7750.09,
-          "units": 136
+          "orders": 66,
+          "revenue": 7839.48,
+          "units": 138
         },
         "walmart": {
           "available": true,
@@ -71,8 +71,8 @@
         }
       },
       "report_date": "2026-09-11",
-      "total_revenue": 8299.49,
-      "total_units": 144
+      "total_revenue": 8557.88,
+      "total_units": 147
     }
   }
 }
