@@ -20,9 +20,13 @@ from typing import Any
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
-import pandas as pd
 import requests
-from dotenv import load_dotenv
+
+try:
+    from dotenv import load_dotenv
+except ImportError:  # optional for local --demo without venv deps
+    def load_dotenv() -> bool:  # type: ignore[misc]
+        return False
 
 from reporting.categories import category_for, empty_category_counts
 from reporting.dashboard import write_dashboard
@@ -118,6 +122,13 @@ def http_request(
                 )
                 time.sleep(wait)
                 continue
+            if response.status_code >= 400:
+                log.error(
+                    "HTTP %s from %s — response body: %s",
+                    response.status_code,
+                    url.split("?")[0],
+                    response.text,
+                )
             response.raise_for_status()
             return response
         except requests.RequestException as exc:
@@ -428,7 +439,14 @@ def fetch_walmart(report_day: date) -> tuple[PlatformMetrics, dict[str, int], li
 # ---------------------------------------------------------------------------
 
 
-def _first_matching_column(df: pd.DataFrame, candidates: tuple[str, ...]) -> str | None:
+def _pandas():
+    """Lazy-import pandas so --demo works without it installed locally."""
+    import pandas as pd
+
+    return pd
+
+
+def _first_matching_column(df: Any, candidates: tuple[str, ...]) -> str | None:
     normalized = {str(col).strip().lower(): col for col in df.columns}
     for candidate in candidates:
         if candidate.lower() in normalized:
@@ -440,7 +458,8 @@ def _first_matching_column(df: pd.DataFrame, candidates: tuple[str, ...]) -> str
     return None
 
 
-def _series_numeric(df: pd.DataFrame, column: str | None) -> pd.Series:
+def _series_numeric(df: Any, column: str | None) -> Any:
+    pd = _pandas()
     if column is None or column not in df.columns:
         return pd.Series(dtype=float)
     return pd.to_numeric(
@@ -449,14 +468,15 @@ def _series_numeric(df: pd.DataFrame, column: str | None) -> pd.Series:
     ).fillna(0)
 
 
-def _sum_numeric(df: pd.DataFrame, column: str | None) -> Decimal:
+def _sum_numeric(df: Any, column: str | None) -> Decimal:
     series = _series_numeric(df, column)
     if series.empty:
         return Decimal("0")
     return money_decimal(series.sum())
 
 
-def _load_sellerboard_csv(url: str, label: str) -> pd.DataFrame:
+def _load_sellerboard_csv(url: str, label: str) -> Any:
+    pd = _pandas()
     response = http_request("GET", url, headers={"Accept": "text/csv,*/*"})
     content_type = (response.headers.get("Content-Type") or "").lower()
     text = response.text
@@ -471,7 +491,8 @@ def _load_sellerboard_csv(url: str, label: str) -> pd.DataFrame:
     return df
 
 
-def _filter_daily_rows(df: pd.DataFrame, report_day: date) -> pd.DataFrame:
+def _filter_daily_rows(df: Any, report_day: date) -> Any:
+    pd = _pandas()
     date_col = _first_matching_column(df, ("Date", "Day", "Report Date", "date"))
     if date_col is None:
         return df
@@ -485,7 +506,7 @@ def _filter_daily_rows(df: pd.DataFrame, report_day: date) -> pd.DataFrame:
 
 def fetch_amazon_sellerboard(
     report_day: date,
-) -> tuple[PlatformMetrics, dict[str, int], list[SkuRow], Decimal | None, pd.DataFrame]:
+) -> tuple[PlatformMetrics, dict[str, int], list[SkuRow], Decimal | None, Any]:
     env = require_env("SELLERBOARD_DAILY_URL", "SELLERBOARD_PRODUCT_URL")
     daily_df = _load_sellerboard_csv(env["SELLERBOARD_DAILY_URL"], "daily")
     product_df = _load_sellerboard_csv(env["SELLERBOARD_PRODUCT_URL"], "product")
@@ -734,7 +755,7 @@ def assemble_report(report_day: date) -> DailyReport:
         status_lines.insert(0, "Walmart unavailable")
 
     # Amazon / Sellerboard
-    daily_df = pd.DataFrame()
+    daily_df = None
     try:
         amazon, amazon_cats, amazon_skus, amazon_acos, daily_df = fetch_amazon_sellerboard(report_day)
         platforms["amazon"] = amazon
@@ -869,32 +890,57 @@ def build_demo_report(report_day: date | None = None) -> DailyReport:
     return report
 
 
-def parse_recipients(raw: str) -> list[dict[str, str]]:
-    recipients = [{"email": part.strip()} for part in raw.replace(";", ",").split(",") if part.strip()]
-    if not recipients:
+def parse_recipients(raw: str | None = None) -> list[dict[str, str]]:
+    """Parse REPORT_RECIPIENTS into Brevo `to` list: [{"email": "..."}, ...]."""
+    recipients_raw = raw if raw is not None else os.getenv("REPORT_RECIPIENTS", "")
+    to_list = [
+        {"email": email.strip()}
+        for email in recipients_raw.replace(";", ",").split(",")
+        if email.strip()
+    ]
+    if not to_list:
         raise RuntimeError("REPORT_RECIPIENTS did not contain any email addresses")
-    return recipients
+    return to_list
 
 
-def send_brevo(report: DailyReport, html_body: str) -> None:
-    env = require_env("BREVO_API_KEY", "REPORT_RECIPIENTS")
-    sender_email = os.environ.get("BREVO_SENDER_EMAIL", "").strip()
-    sender_name = os.environ.get("BREVO_SENDER_NAME", "Daily Revenue Report").strip()
+def build_brevo_payload(report: DailyReport, html_body: str) -> dict[str, Any]:
+    """Build a Brevo transactional email payload per REST API schema."""
+    sender_email = os.getenv("BREVO_SENDER_EMAIL", "marco@weatherman.com").strip()
     if not sender_email:
-        sender_email = parse_recipients(env["REPORT_RECIPIENTS"])[0]["email"]
-        log.warning("BREVO_SENDER_EMAIL unset; using %s as sender", sender_email)
+        sender_email = "marco@weatherman.com"
+    sender_name = os.getenv("BREVO_SENDER_NAME", "Weatherman Revenue").strip() or "Weatherman Revenue"
+    to_list = parse_recipients(os.getenv("REPORT_RECIPIENTS", ""))
 
-    payload = {
-        "sender": {"name": sender_name, "email": sender_email},
-        "to": parse_recipients(env["REPORT_RECIPIENTS"]),
+    return {
+        "sender": {
+            "name": sender_name,
+            "email": sender_email,
+        },
+        "to": to_list,
         "subject": build_subject(report),
         "htmlContent": html_body,
     }
+
+
+def send_brevo(report: DailyReport, html_body: str) -> None:
+    api_key = os.getenv("BREVO_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("Missing required environment variable(s): BREVO_API_KEY")
+
+    payload = build_brevo_payload(report, html_body)
+    log.info(
+        "Brevo payload ready: sender=%s to=%s subject=%r html_chars=%s",
+        payload["sender"],
+        [r["email"] for r in payload["to"]],
+        payload["subject"],
+        len(payload["htmlContent"]),
+    )
+
     response = http_request(
         "POST",
         BREVO_SMTP_URL,
         headers={
-            "api-key": env["BREVO_API_KEY"],
+            "api-key": api_key,
             "accept": "application/json",
             "content-type": "application/json",
         },
@@ -920,6 +966,16 @@ def run(demo: bool = False, skip_email: bool = False) -> int:
     log.info("Wrote email preview %s", email_preview)
 
     if skip_email or demo:
+        # Dry-run payload validation without calling Brevo
+        os.environ.setdefault("REPORT_RECIPIENTS", "rick@weatherman.com, marco@weatherman.com")
+        os.environ.setdefault("BREVO_SENDER_EMAIL", "marco@weatherman.com")
+        payload = build_brevo_payload(report, email_html)
+        log.info(
+            "Brevo dry-run payload OK: sender=%s to=%s subject=%r",
+            payload["sender"],
+            payload["to"],
+            payload["subject"],
+        )
         log.info("Skipping Brevo dispatch (demo/skip_email)")
         return 0
 
