@@ -129,6 +129,16 @@ class DailyReport:
     dashboard_url: str = ""
     greeting_name: str = "Rick"
 
+    @property
+    def target_date(self) -> date:
+        """Active report date (previous ET day in production runs)."""
+        return self.report_day
+
+    def format_target_date(self) -> str:
+        """Human-readable header date: `Month D, YYYY` (e.g. September 11, 2026)."""
+        d = self.target_date
+        return f"{d.strftime('%B')} {d.day}, {d.year}"
+
     def total_revenue(self) -> Decimal:
         return sum(
             (p.revenue for p in self.platforms.values() if p.available),

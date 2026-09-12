@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import html
+import logging
+import shutil
 from pathlib import Path
 
 from reporting.models import (
@@ -15,14 +17,16 @@ from reporting.models import (
     pct_str,
 )
 
+log = logging.getLogger("daily_report.dashboard")
+
 
 def _esc(value: object) -> str:
     return html.escape(str(value))
 
 
 def build_dashboard_html(report: DailyReport) -> str:
-    day = report.report_day
-    long_date = day.strftime("%B %d, %Y").replace(" 0", " ")
+    # Always derive header date from the active report target (never hardcode).
+    long_date = report.format_target_date()
     subtitle_channels = (
         "Amazon + Shopify Direct + DICK'S SPORTING GOODS + NORDSTROM + Walmart"
     )
@@ -396,11 +400,21 @@ def build_dashboard_html(report: DailyReport) -> str:
 
 
 def write_dashboard(report: DailyReport, docs_dir: Path) -> tuple[Path, Path]:
-    """Write dated + latest dashboard HTML under docs/ for GitHub Pages."""
+    """Write dated dashboard HTML, then copy it to docs/index.html (latest)."""
     docs_dir.mkdir(parents=True, exist_ok=True)
     html_body = build_dashboard_html(report)
-    dated = docs_dir / f"{report.report_day.isoformat()}.html"
+
+    dated = docs_dir / f"{report.target_date.isoformat()}.html"
     latest = docs_dir / "index.html"
+
     dated.write_text(html_body, encoding="utf-8")
-    latest.write_text(html_body, encoding="utf-8")
+    # Always refresh the Pages landing page from the dated artifact for this run.
+    shutil.copyfile(dated, latest)
+
+    log.info(
+        "Dashboard written for target_date=%s → %s (copied to %s)",
+        report.format_target_date(),
+        dated.name,
+        latest.name,
+    )
     return dated, latest

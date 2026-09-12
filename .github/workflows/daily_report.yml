@@ -2,9 +2,15 @@ name: Daily Revenue Report Pipeline
 
 on:
   schedule:
-    # Daily at 08:00 UTC
-    - cron: '0 8 * * *'
+    # Daily at 12:00 UTC
+    - cron: '0 12 * * *'
   workflow_dispatch:
+    inputs:
+      send_email:
+        description: 'Send daily email via Brevo?'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -51,6 +57,9 @@ jobs:
           SHOPIFY_AD_SPEND: ${{ secrets.SHOPIFY_AD_SPEND }}
           DASHBOARD_PUBLIC_URL: ${{ secrets.DASHBOARD_PUBLIC_URL }}
           REPORT_GREETING_NAME: ${{ secrets.REPORT_GREETING_NAME }}
+          # Manual runs: skip email when send_email is false.
+          # Scheduled runs have no inputs → expression is false → email sends.
+          SKIP_EMAIL: ${{ github.event.inputs.send_email == 'false' }}
         run: python main.py
 
       - name: Commit dashboard + archive artifacts

@@ -491,17 +491,108 @@ def _load_sellerboard_csv(url: str, label: str) -> Any:
     return df
 
 
-def _filter_daily_rows(df: Any, report_day: date) -> Any:
+SELLERBOARD_DATE_FORMATS = (
+    "%Y-%m-%d",
+    "%m/%d/%Y",
+    "%m/%d/%y",
+    "%d/%m/%Y",
+    "%b %d, %Y",
+    "%B %d, %Y",
+    "%d-%b-%Y",
+    "%Y/%m/%d",
+    "%m-%d-%Y",
+)
+
+
+def _parse_sellerboard_dates(raw_series: Any) -> Any:
+    """Parse Sellerboard date columns across common export formats."""
     pd = _pandas()
+    cleaned = (
+        raw_series.astype(str)
+        .str.strip()
+        .str.replace(r"\s+", " ", regex=True)
+        # Drop trailing time / timezone fragments when present.
+        .str.replace(r"\s+\d{1,2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$", "", regex=True)
+        .replace({"": pd.NA, "nan": pd.NA, "None": pd.NA, "NaT": pd.NA})
+    )
+
+    parsed = pd.Series(pd.NaT, index=cleaned.index, dtype="datetime64[ns]")
+    # Try explicit formats first for deterministic US-style parsing.
+    remaining = cleaned.notna()
+    for fmt in SELLERBOARD_DATE_FORMATS:
+        if not remaining.any():
+            break
+        attempt = pd.to_datetime(cleaned.loc[remaining], format=fmt, errors="coerce")
+        ok_mask = attempt.notna()
+        if ok_mask.any():
+            idx = attempt.index[ok_mask.to_numpy()]
+            parsed.loc[idx] = attempt.loc[idx]
+            remaining = cleaned.notna() & parsed.isna()
+
+    # Final pass: let pandas infer any leftover values.
+    if remaining.any():
+        try:
+            inferred = pd.to_datetime(cleaned.loc[remaining], errors="coerce", format="mixed")
+        except (TypeError, ValueError):
+            inferred = pd.to_datetime(cleaned.loc[remaining], errors="coerce")
+        ok_mask = inferred.notna()
+        if ok_mask.any():
+            idx = inferred.index[ok_mask.to_numpy()]
+            parsed.loc[idx] = inferred.loc[idx]
+
+    return parsed
+
+
+def _filter_daily_rows(df: Any, report_day: date, *, label: str = "daily") -> Any:
+    """Keep only rows for report_day. Never fall back to the full export."""
+    pd = _pandas()
+    target = report_day.isoformat()
     date_col = _first_matching_column(df, ("Date", "Day", "Report Date", "date"))
+
     if date_col is None:
-        return df
-    parsed = pd.to_datetime(df[date_col], errors="coerce")
+        log.warning(
+            "Sellerboard %s CSV has no recognizable date column; "
+            "refusing full-export sum for %s",
+            label,
+            target,
+        )
+        return df.iloc[0:0].copy()
+
+    parsed = _parse_sellerboard_dates(df[date_col])
     mask = parsed.dt.date == report_day
-    if mask.any():
-        return df.loc[mask]
-    log.info("Sellerboard daily has no exact date rows for %s; using full export", report_day)
-    return df
+    matched = df.loc[mask].copy()
+
+    if matched.empty:
+        sample_values = (
+            df[date_col]
+            .astype(str)
+            .str.strip()
+            .replace({"": pd.NA})
+            .dropna()
+            .unique()[:8]
+            .tolist()
+        )
+        parseable = int(parsed.notna().sum())
+        log.warning(
+            "Sellerboard %s CSV has no exact date match for %s "
+            "(parsed %s/%s rows; sample raw values=%s). "
+            "Using $0.00 for this export slice (refusing full-export sum)",
+            label,
+            target,
+            parseable,
+            len(df),
+            sample_values,
+        )
+        return matched
+
+    log.info(
+        "Sellerboard %s: matched %s row(s) for %s via column %r",
+        label,
+        len(matched),
+        target,
+        date_col,
+    )
+    return matched
 
 
 def fetch_amazon_sellerboard(
@@ -510,7 +601,7 @@ def fetch_amazon_sellerboard(
     env = require_env("SELLERBOARD_DAILY_URL", "SELLERBOARD_PRODUCT_URL")
     daily_df = _load_sellerboard_csv(env["SELLERBOARD_DAILY_URL"], "daily")
     product_df = _load_sellerboard_csv(env["SELLERBOARD_PRODUCT_URL"], "product")
-    filtered = _filter_daily_rows(daily_df, report_day)
+    filtered = _filter_daily_rows(daily_df, report_day, label="daily")
 
     sales_col = _first_matching_column(
         filtered,
@@ -523,23 +614,28 @@ def fetch_amazon_sellerboard(
     orders_col = _first_matching_column(filtered, ("Orders", "Order Count"))
     acos_col = _first_matching_column(filtered, ("Real ACOS", "ACOS", "ACoS", "ACOS %"))
 
-    revenue = _sum_numeric(filtered, sales_col)
-    units = int(_sum_numeric(filtered, units_col))
-    order_count = int(_sum_numeric(filtered, orders_col)) if orders_col else units
-
-    amazon_acos: Decimal | None = None
-    if acos_col is not None and not filtered.empty:
-        acos_series = _series_numeric(filtered, acos_col)
-        if not acos_series.empty:
-            # Prefer revenue-weighted ACOS when sales exist; else mean.
-            if sales_col and _sum_numeric(filtered, sales_col) > 0:
+    # Daily headline metrics come ONLY from date-matched daily rows.
+    if filtered.empty:
+        revenue = Decimal("0")
+        units = 0
+        order_count = 0
+        amazon_acos: Decimal | None = None
+    else:
+        revenue = _sum_numeric(filtered, sales_col)
+        units = int(_sum_numeric(filtered, units_col))
+        order_count = int(_sum_numeric(filtered, orders_col)) if orders_col else units
+        amazon_acos = None
+        if acos_col is not None:
+            acos_series = _series_numeric(filtered, acos_col)
+            if not acos_series.empty and revenue > 0 and sales_col:
                 weights = _series_numeric(filtered, sales_col)
                 amazon_acos = money_decimal((acos_series * weights).sum() / weights.sum())
-            else:
+            elif not acos_series.empty:
                 amazon_acos = money_decimal(acos_series.mean())
 
     cats = empty_category_counts()
     skus: list[SkuRow] = []
+    # Product export is for SKU drilldown only — never used to replace daily revenue.
     sku_col = _first_matching_column(product_df, ("SKU", "Seller SKU", "MSKU", "Asin", "ASIN"))
     title_col = _first_matching_column(product_df, ("Product", "Title", "Item", "Name", "Product Name"))
     p_sales_col = _first_matching_column(
@@ -547,8 +643,21 @@ def fetch_amazon_sellerboard(
         ("Sales", "Revenue", "Ordered Product Sales", "Gross Sales", "Sales USD"),
     )
     p_units_col = _first_matching_column(product_df, ("Units", "Units Ordered", "Quantity", "Orders"))
+    p_date_col = _first_matching_column(product_df, ("Date", "Day", "Report Date", "date"))
 
-    for _, row in product_df.iterrows():
+    if p_date_col is not None:
+        product_rows = _filter_daily_rows(product_df, report_day, label="product")
+    elif not filtered.empty:
+        # Assume day-scoped product automation URL when daily already matched.
+        product_rows = product_df
+    else:
+        log.warning(
+            "Sellerboard product CSV has no date column and daily date match failed; "
+            "skipping Amazon SKU drilldown to avoid MTD contamination"
+        )
+        product_rows = product_df.iloc[0:0].copy()
+
+    for _, row in product_rows.iterrows():
         title = str(row[title_col]) if title_col else ""
         sku = str(row[sku_col]) if sku_col else "UNKNOWN"
         qty = int(money_decimal(row[p_units_col])) if p_units_col else 0
@@ -558,11 +667,6 @@ def fetch_amazon_sellerboard(
         cat = category_for(title, sku)
         cats[cat] = cats.get(cat, 0) + qty
         skus.append(SkuRow(platform="Amazon", sku=sku, item=title or sku, units=qty, revenue=line_rev))
-
-    if revenue == 0 and skus:
-        revenue = sum((s.revenue for s in skus), Decimal("0"))
-    if units == 0 and skus:
-        units = sum(s.units for s in skus)
 
     platform = PlatformMetrics(
         key="amazon",
@@ -949,9 +1053,18 @@ def send_brevo(report: DailyReport, html_body: str) -> None:
     log.info("Brevo dispatch succeeded (messageId=%s)", response.json().get("messageId", "unknown"))
 
 
+def env_flag(name: str) -> bool:
+    return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 def run(demo: bool = False, skip_email: bool = False) -> int:
     report_day = previous_day_et()
-    log.info("Building daily revenue report for %s", "demo/2026-09-10" if demo else report_day.isoformat())
+    skip_email = skip_email or env_flag("SKIP_EMAIL")
+    log.info(
+        "Building daily revenue report for %s (skip_email=%s)",
+        "demo/2026-09-10" if demo else report_day.isoformat(),
+        skip_email,
+    )
 
     report = build_demo_report() if demo else assemble_report(report_day)
     report.dashboard_url = dashboard_public_url(report.report_day)
@@ -959,14 +1072,13 @@ def run(demo: bool = False, skip_email: bool = False) -> int:
     dated, latest = write_dashboard(report, DOCS_DIR)
     log.info("Wrote dashboard %s and %s", dated, latest)
 
-    # Also stash a copy of the email HTML for local QA
+    # Also stash a copy of the email HTML for local QA / preview
     email_html = build_email_html(report)
     email_preview = DOCS_DIR / f"email-{report.report_day.isoformat()}.html"
     email_preview.write_text(email_html, encoding="utf-8")
     log.info("Wrote email preview %s", email_preview)
 
-    if skip_email or demo:
-        # Dry-run payload validation without calling Brevo
+    if demo:
         os.environ.setdefault("REPORT_RECIPIENTS", "rick@weatherman.com, marco@weatherman.com")
         os.environ.setdefault("BREVO_SENDER_EMAIL", "marco@weatherman.com")
         payload = build_brevo_payload(report, email_html)
@@ -976,7 +1088,14 @@ def run(demo: bool = False, skip_email: bool = False) -> int:
             payload["to"],
             payload["subject"],
         )
-        log.info("Skipping Brevo dispatch (demo/skip_email)")
+        log.info("Skipping Brevo email dispatch as requested.")
+        return 0
+
+    if skip_email:
+        log.info("Skipping Brevo email dispatch as requested.")
+        if not any(p.available for p in report.platforms.values()):
+            log.error("All channels unavailable")
+            return 2
         return 0
 
     try:
@@ -994,7 +1113,11 @@ def run(demo: bool = False, skip_email: bool = False) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Daily revenue report pipeline")
     parser.add_argument("--demo", action="store_true", help="Render Image 1/2 sample data without APIs")
-    parser.add_argument("--skip-email", action="store_true", help="Build artifacts only; do not call Brevo")
+    parser.add_argument(
+        "--skip-email",
+        action="store_true",
+        help="Run live ingestion + docs/archive generation but do not call Brevo",
+    )
     args = parser.parse_args()
     sys.exit(run(demo=args.demo, skip_email=args.skip_email))
 
