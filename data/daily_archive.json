@@ -1527,32 +1527,32 @@
         },
         "dsg": {
           "available": true,
-          "orders": 1,
-          "revenue": 120.0,
-          "units": 3
+          "orders": 2,
+          "revenue": 77.3,
+          "units": 2
         },
         "nordstrom": {
           "available": true,
-          "orders": 2,
-          "revenue": 275.0,
+          "orders": 3,
+          "revenue": 317.0,
           "units": 3
         },
         "shopify_direct": {
           "available": true,
-          "orders": 36,
-          "revenue": 3300.0,
-          "units": 66
+          "orders": 34,
+          "revenue": 3931.63,
+          "units": 58
         },
         "walmart": {
           "available": true,
-          "orders": 5,
-          "revenue": 410.0,
-          "units": 5
+          "orders": 1,
+          "revenue": 77.0,
+          "units": 1
         }
       },
       "report_date": "2026-09-11",
-      "total_revenue": 14665.0,
-      "total_units": 253
+      "total_revenue": 14962.93,
+      "total_units": 240
     }
   }
 }
