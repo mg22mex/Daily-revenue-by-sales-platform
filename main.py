@@ -606,20 +606,28 @@ def _load_sellerboard_csv(url: str, label: str) -> Any:
     return df
 
 
-SELLERBOARD_DATE_FORMATS = (
+SELLERBOARD_DATE_FORMATS_UNAMBIGUOUS = (
     "%Y-%m-%d",
-    "%m/%d/%Y",
-    "%m/%d/%y",
-    "%d/%m/%Y",
     "%b %d, %Y",
     "%B %d, %Y",
     "%d-%b-%Y",
     "%Y/%m/%d",
-    "%m-%d-%Y",
-    "%m.%d.%Y",
-    "%d.%m.%Y",
     "%Y.%m.%d",
     "%b-%d-%Y",
+)
+
+# Ambiguous numeric dates: order depends on detected locale (US vs EU).
+SELLERBOARD_DATE_FORMATS_US = (
+    "%m/%d/%Y",
+    "%m/%d/%y",
+    "%m-%d-%Y",
+    "%m.%d.%Y",
+)
+SELLERBOARD_DATE_FORMATS_EU = (
+    "%d/%m/%Y",
+    "%d/%m/%y",
+    "%d-%m-%Y",
+    "%d.%m.%Y",
 )
 
 
@@ -639,11 +647,47 @@ def _clean_sellerboard_date_strings(raw_series: Any) -> Any:
             "",
             regex=True,
         )
-        # Normalize common separators: 09-10-2026, 09.10.2026
-        .str.replace(r"[.]", "/", regex=True)
         .replace({"": pd.NA, "nan": pd.NA, "None": pd.NA, "NaT": pd.NA, "NaN": pd.NA})
     )
     return cleaned
+
+
+def _sellerboard_prefer_dayfirst(cleaned: Any) -> bool:
+    """Detect DD/MM(/YY) exports when any first component is > 12 (impossible as month).
+
+    Sellerboard EU automation URLs commonly emit ``11/08/2026`` for 11 Aug. Parsing those
+    as US MM/DD silently maps them to Nov/Dec and drops the real calendar day (e.g. Sep 11).
+    """
+    samples = cleaned.dropna().astype(str)
+    if samples.empty:
+        return False
+    day_gt_12 = 0
+    month_gt_12_as_second = 0
+    looked = 0
+    for value in samples.head(500):
+        parts = re.split(r"[/\-.]", value.strip())
+        if len(parts) < 2 or not parts[0].isdigit() or not parts[1].isdigit():
+            continue
+        first, second = int(parts[0]), int(parts[1])
+        # Skip ISO-looking YYYY-...
+        if first >= 1000:
+            continue
+        looked += 1
+        if first > 12:
+            day_gt_12 += 1
+        if second > 12:
+            month_gt_12_as_second += 1
+    if day_gt_12 > 0:
+        return True
+    if month_gt_12_as_second > 0:
+        return False
+    # Ambiguous (all components ≤12): Sellerboard automation commonly emits DMY.
+    forced = os.getenv("SELLERBOARD_DAYFIRST", "").strip().lower()
+    if forced in {"0", "false", "no", "off", "us", "mdy"}:
+        return False
+    if forced in {"1", "true", "yes", "on", "eu", "dmy"}:
+        return True
+    return True
 
 
 def _parse_sellerboard_dates(raw_series: Any) -> Any:
@@ -665,7 +709,20 @@ def _parse_sellerboard_dates(raw_series: Any) -> Any:
             parsed.loc[serial_dates.index] = serial_dates
             remaining = cleaned.notna() & parsed.isna()
 
-    for fmt in SELLERBOARD_DATE_FORMATS:
+    dayfirst = _sellerboard_prefer_dayfirst(cleaned.loc[remaining]) if remaining.any() else False
+    if dayfirst:
+        log.info(
+            "Sellerboard dates: detected DD/MM (day-first) numeric format; "
+            "preferring European parse order"
+        )
+    ambiguous = (
+        SELLERBOARD_DATE_FORMATS_EU + SELLERBOARD_DATE_FORMATS_US
+        if dayfirst
+        else SELLERBOARD_DATE_FORMATS_US + SELLERBOARD_DATE_FORMATS_EU
+    )
+    format_order = SELLERBOARD_DATE_FORMATS_UNAMBIGUOUS + ambiguous
+
+    for fmt in format_order:
         if not remaining.any():
             break
         attempt = pd.to_datetime(cleaned.loc[remaining], format=fmt, errors="coerce")
@@ -675,12 +732,19 @@ def _parse_sellerboard_dates(raw_series: Any) -> Any:
             parsed.loc[idx] = attempt.loc[idx]
             remaining = cleaned.notna() & parsed.isna()
 
-    # Final pass: let pandas infer any leftover values.
+    # Final pass: let pandas infer leftovers with the same dayfirst preference.
     if remaining.any():
         try:
-            inferred = pd.to_datetime(cleaned.loc[remaining], errors="coerce", format="mixed")
+            inferred = pd.to_datetime(
+                cleaned.loc[remaining],
+                errors="coerce",
+                format="mixed",
+                dayfirst=dayfirst,
+            )
         except (TypeError, ValueError):
-            inferred = pd.to_datetime(cleaned.loc[remaining], errors="coerce")
+            inferred = pd.to_datetime(
+                cleaned.loc[remaining], errors="coerce", dayfirst=dayfirst
+            )
         ok_mask = inferred.notna()
         if ok_mask.any():
             idx = inferred.index[ok_mask.to_numpy()]
@@ -794,21 +858,40 @@ def fetch_amazon_sellerboard(
 
     cats = empty_category_counts()
     skus: list[SkuRow] = []
-    # Product export is for SKU drilldown only — never used to replace daily revenue.
-    sku_col = _first_matching_column(product_df, ("SKU", "Seller SKU", "MSKU", "Asin", "ASIN"))
-    title_col = _first_matching_column(product_df, ("Product", "Title", "Item", "Name", "Product Name"))
+    # Product / Dashboard-by-Product export drives SKU drilldown + category matrix.
+    # Never replace daily headline revenue with product-row sums.
+    sku_col = _first_matching_column(
+        product_df,
+        ("SKU", "Seller SKU", "MSKU", "Merchant SKU", "Asin", "ASIN"),
+    )
+    title_col = _first_matching_column(
+        product_df,
+        ("Product", "Title", "Item", "Name", "Product Name", "Product Title"),
+    )
     p_sales_col = _first_matching_column(
         product_df,
-        ("Sales", "Revenue", "Ordered Product Sales", "Gross Sales", "Sales USD"),
+        ("Sales", "Revenue", "Ordered Product Sales", "Gross Sales", "Sales USD", "Amount"),
     )
-    p_units_col = _first_matching_column(product_df, ("Units", "Units Ordered", "Quantity", "Orders"))
-    p_date_col = _first_matching_column(product_df, ("Date", "Day", "Report Date", "date"))
+    p_units_col = _first_matching_column(
+        product_df,
+        ("Units", "Units Ordered", "Quantity", "Units Sold", "Ordered Units"),
+    )
+    p_date_col = _first_matching_column(
+        product_df,
+        ("Date", "Day", "Report Date", "Datetime", "Time", "Period", "date"),
+    )
 
     if p_date_col is not None:
         product_rows = _filter_daily_rows(product_df, report_day, label="product")
     elif not filtered.empty:
         # Assume day-scoped product automation URL when daily already matched.
         product_rows = product_df
+        log.info(
+            "Sellerboard product: no date column — using full product CSV as day-scoped "
+            "SKU snapshot for %s (%s rows)",
+            report_day.isoformat(),
+            len(product_rows),
+        )
     else:
         log.warning(
             "Sellerboard product CSV has no date column and daily date match failed; "
@@ -816,16 +899,50 @@ def fetch_amazon_sellerboard(
         )
         product_rows = product_df.iloc[0:0].copy()
 
+    # Aggregate duplicate SKU lines for the target day (Dashboard-by-Product can repeat).
+    sku_agg: dict[tuple[str, str], dict[str, Any]] = {}
     for _, row in product_rows.iterrows():
-        title = str(row[title_col]) if title_col else ""
-        sku = str(row[sku_col]) if sku_col else "UNKNOWN"
-        qty = int(money_decimal(row[p_units_col])) if p_units_col else 0
-        line_rev = money_decimal(row[p_sales_col]) if p_sales_col else Decimal("0")
+        title = str(row[title_col]).strip() if title_col else ""
+        sku = str(row[sku_col]).strip() if sku_col else "UNKNOWN"
+        if not sku or sku.lower() in {"nan", "none", "null"}:
+            sku = "UNKNOWN"
+        if title.lower() in {"nan", "none", "null"}:
+            title = ""
+        qty = int(_safe_row_number(row, p_units_col))
+        line_rev = money_decimal(_safe_row_number(row, p_sales_col))
         if qty == 0 and line_rev == 0:
             continue
+        key = (sku, title or sku)
+        bucket = sku_agg.setdefault(key, {"units": 0, "revenue": Decimal("0")})
+        bucket["units"] += qty
+        bucket["revenue"] += line_rev
+
+    for (sku, title), bucket in sku_agg.items():
+        qty = int(bucket["units"])
+        line_rev = money_decimal(bucket["revenue"])
         cat = category_for(title, sku)
         cats[cat] = cats.get(cat, 0) + qty
-        skus.append(SkuRow(platform="Amazon", sku=sku, item=title or sku, units=qty, revenue=line_rev))
+        skus.append(
+            SkuRow(platform="Amazon", sku=sku, item=title or sku, units=qty, revenue=line_rev)
+        )
+
+    # If product rows exist but units still don't cover the daily total, keep SKU truth
+    # and log the gap (do not invent synthetic SKUs).
+    sku_units = sum(row.units for row in skus)
+    if units and sku_units == 0:
+        log.warning(
+            "Sellerboard: daily units=%s but product SKU rows matched 0 for %s "
+            "(check SELLERBOARD_PRODUCT_URL is Dashboard by Product / Orders with Date+SKU)",
+            units,
+            report_day.isoformat(),
+        )
+    elif units and sku_units and sku_units != units:
+        log.info(
+            "Sellerboard: daily units=%s vs product SKU units=%s for %s (category matrix uses SKU)",
+            units,
+            sku_units,
+            report_day.isoformat(),
+        )
 
     platform = PlatformMetrics(
         key="amazon",
@@ -836,8 +953,33 @@ def fetch_amazon_sellerboard(
         order_count=order_count,
         note="Sellerboard",
     )
-    log.info("Amazon/Sellerboard: revenue=%s units=%s acos=%s", revenue, units, amazon_acos)
+    log.info(
+        "Amazon/Sellerboard: revenue=%s units=%s acos=%s sku_rows=%s category_units=%s",
+        revenue,
+        units,
+        amazon_acos,
+        len(skus),
+        sum(cats.values()),
+    )
     return platform, cats, skus, amazon_acos, daily_df
+
+
+def _safe_row_number(row: Any, column: str | None) -> float:
+    if column is None:
+        return 0.0
+    try:
+        value = row[column]
+    except Exception:
+        return 0.0
+    if value is None:
+        return 0.0
+    text = str(value).strip().replace(",", "").replace("$", "").replace("%", "")
+    if not text or text.lower() in {"nan", "none", "null", "-"}:
+        return 0.0
+    try:
+        return float(text)
+    except ValueError:
+        return 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -1297,26 +1439,128 @@ def build_demo_report(report_day: date | None = None) -> DailyReport:
             revenue=wal_rev, units=max(1, int(wal_rev / 70)), order_count=max(1, int(wal_rev / 70)),
             note="Exact-date relay",
         )
-        umbrellas = sum(p.units for p in platforms.values())
-        category_totals = {
-            "umbrellas": max(0, umbrellas - (seed % 3)),
-            "backpack": seed % 2,
-            "poncho": seed % 3,
-            "hat": 0,
-            "shirts": seed % 4,
-        }
+        amazon_units = platforms["amazon"].units
+        shop_units = platforms["shopify_direct"].units
+        dsg_units = platforms["dsg"].units
+        nord_units = platforms["nordstrom"].units
+        wal_units = platforms["walmart"].units
+        amz_shirts = min(8, max(0, seed % 5))
+        amz_poncho = min(2, max(0, seed % 3))
+        amz_umbrellas = max(0, amazon_units - amz_shirts - amz_poncho)
         category_by_platform = {
-            key: {
-                "umbrellas": max(0, platforms[key].units - 1),
+            "amazon": {
+                "umbrellas": amz_umbrellas,
+                "backpack": 0,
+                "poncho": amz_poncho,
+                "hat": 0,
+                "shirts": amz_shirts,
+            },
+            "shopify_direct": {
+                "umbrellas": max(0, shop_units - 1),
+                "backpack": 0,
+                "poncho": 1 if shop_units else 0,
+                "hat": 0,
+                "shirts": 0,
+            },
+            "dsg": {
+                "umbrellas": dsg_units,
                 "backpack": 0,
                 "poncho": 0,
                 "hat": 0,
                 "shirts": 0,
-            }
-            for key in PLATFORM_KEYS
+            },
+            "nordstrom": {
+                "umbrellas": nord_units,
+                "backpack": 0,
+                "poncho": 0,
+                "hat": 0,
+                "shirts": 0,
+            },
+            "walmart": {
+                "umbrellas": wal_units,
+                "backpack": 0,
+                "poncho": 0,
+                "hat": 0,
+                "shirts": 0,
+            },
+        }
+        category_totals = {
+            key: sum(category_by_platform[p][key] for p in PLATFORM_KEYS)
+            for key in ("umbrellas", "backpack", "poncho", "hat", "shirts")
         }
         ad_spend = Decimal(str(1200 + (seed % 13) * 40))
-        sku_rows = []
+        # Spread Amazon units across a few SKUs so drilldown + AMAZON category column populate.
+        amz_sku_a = max(1, amz_umbrellas // 2)
+        amz_sku_b = max(0, amz_umbrellas - amz_sku_a)
+        amz_rev_a = (amazon_rev * Decimal("0.55")).quantize(MONEY, rounding=ROUND_HALF_UP)
+        amz_rev_b = (amazon_rev - amz_rev_a).quantize(MONEY, rounding=ROUND_HALF_UP)
+        sku_rows = [
+            SkuRow(
+                platform="Amazon",
+                sku="FBA3-12005-001-221-51",
+                item="Weatherman Premium Collapsible Travel Umbrella - Windproof Compact (Black)",
+                units=amz_sku_a,
+                revenue=amz_rev_a,
+            ),
+        ]
+        if amz_sku_b:
+            sku_rows.append(
+                SkuRow(
+                    platform="Amazon",
+                    sku="FBA3-12005-100-00004",
+                    item="Weatherman Trek Umbrella (Charcoal)",
+                    units=amz_sku_b,
+                    revenue=amz_rev_b,
+                )
+            )
+        if amz_poncho:
+            sku_rows.append(
+                SkuRow(
+                    platform="Amazon",
+                    sku="FBA3-WM-23001-410-M/L",
+                    item="Weatherman Men's Stride Pullover Poncho",
+                    units=amz_poncho,
+                    revenue=Decimal(str(49 * amz_poncho)),
+                )
+            )
+        if amz_shirts:
+            sku_rows.append(
+                SkuRow(
+                    platform="Amazon",
+                    sku="FBA3-BS01-566-LG-01",
+                    item="Men's UPF 20+ Bamboo Sun Shirt",
+                    units=amz_shirts,
+                    revenue=Decimal(str(42 * amz_shirts)),
+                )
+            )
+        sku_rows.extend(
+            [
+                SkuRow(
+                    platform="Shopify Direct",
+                    sku="12005-001-221-51",
+                    item="Trek Umbrella",
+                    units=max(1, shop_units // 2),
+                    revenue=(shop_rev * Decimal("0.4")).quantize(MONEY, rounding=ROUND_HALF_UP),
+                ),
+                SkuRow(
+                    platform="Walmart",
+                    sku="FBM-12005-001-221-51",
+                    item="Weatherman Collapsible Travel Umbrella Auto Open 40 Inches (Black)",
+                    units=wal_units,
+                    revenue=wal_rev,
+                ),
+            ]
+        )
+        if nord_units:
+            sku_rows.append(
+                SkuRow(
+                    platform="NORDSTROM",
+                    sku="12005-001-221-51",
+                    item="Trek Umbrella",
+                    units=nord_units,
+                    revenue=nord_rev,
+                )
+            )
         status_lines = [
             "Walmart exact-date relay complete",
             "Sellerboard revenue and units reconciled",
@@ -1735,13 +1979,14 @@ def main() -> None:
     target = parse_target_date(args.target_date)
     if target is None:
         target = resolve_target_date()
+    demo = args.demo
+    has_live_creds = bool(
+        os.getenv("SHOPIFY_ACCESS_TOKEN", "").strip()
+        and os.getenv("WALMART_CLIENT_ID", "").strip()
+        and os.getenv("SELLERBOARD_DAILY_URL", "").strip()
+    )
     if args.backfill:
-        demo = args.demo
-        if not demo and not (
-            os.getenv("SHOPIFY_ACCESS_TOKEN", "").strip()
-            and os.getenv("WALMART_CLIENT_ID", "").strip()
-            and os.getenv("SELLERBOARD_DAILY_URL", "").strip()
-        ):
+        if not demo and not has_live_creds:
             log.warning(
                 "API credentials not found in environment; "
                 "running --backfill with demo synthetic days so MTD/last-month can populate"
@@ -1756,7 +2001,13 @@ def main() -> None:
                 seed_baseline=not args.no_seed_baseline,
             )
         )
-    sys.exit(run(demo=args.demo, skip_email=args.skip_email, target_date=target))
+    if not demo and not has_live_creds:
+        log.warning(
+            "API credentials not found in environment; "
+            "falling back to demo report for local verification"
+        )
+        demo = True
+    sys.exit(run(demo=demo, skip_email=args.skip_email or demo, target_date=target))
 
 
 if __name__ == "__main__":

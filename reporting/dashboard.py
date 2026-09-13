@@ -31,8 +31,6 @@ def build_dashboard_html(report: DailyReport) -> str:
     subtitle_channels = (
         "Amazon + Shopify Direct + DICK'S SPORTING GOODS + NORDSTROM + Walmart"
     )
-    status = " · ".join(report.status_lines) if report.status_lines else "Report generated"
-    status_prefix = "✓ " if not status.startswith("✓") else ""
 
     period_cards = []
     for card in report.period_cards:
@@ -156,8 +154,6 @@ def build_dashboard_html(report: DailyReport) -> str:
       --teal: #0F766E;
       --teal-mid: #14919B;
       --green: #2E7D32;
-      --status-bg: #E6F4EA;
-      --status-fg: #137333;
       --border: #E5E7EB;
       --accent-bar: #5C6BC0;
     }}
@@ -187,13 +183,6 @@ def build_dashboard_html(report: DailyReport) -> str:
     .header .sub {{
       font-size: 13px;
       opacity: 0.85;
-    }}
-    .status {{
-      background: var(--status-bg);
-      color: var(--status-fg);
-      padding: 10px 28px;
-      font-size: 13px;
-      font-weight: 600;
     }}
     .wrap {{
       padding: 20px 24px 40px;
@@ -322,7 +311,7 @@ def build_dashboard_html(report: DailyReport) -> str:
         grid-template-columns: 1fr;
       }}
       .wrap {{ padding: 14px; }}
-      .header, .status {{ padding-left: 14px; padding-right: 14px; }}
+      .header {{ padding-left: 14px; padding-right: 14px; }}
     }}
   </style>
 </head>
@@ -332,7 +321,6 @@ def build_dashboard_html(report: DailyReport) -> str:
     <h1>Daily Revenue Dashboard</h1>
     <div class="sub">{_esc(subtitle_channels)} · {_esc(long_date)}</div>
   </header>
-  <div class="status">{status_prefix}{_esc(status)}</div>
 
   <main class="wrap">
     <div class="period-grid">
