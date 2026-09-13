@@ -6,8 +6,8 @@
     "Shirts": 0,
     "Umbrellas": 1
   },
-  "generated_at_utc": "2026-09-12T17:12:18.409617Z",
-  "gross_revenue": 77.0,
+  "generated_at_utc": "2026-09-13T17:25:14.579152Z",
+  "gross_revenue": 69.0,
   "order_count": 1,
   "queried_ship_node_types": [
     "SellerFulfilled",
@@ -26,23 +26,23 @@
     "SellerFulfilled:Shipped": 0,
     "WFSFulfilled:Acknowledged": 0,
     "WFSFulfilled:Created": 0,
-    "WFSFulfilled:Delivered": 1,
-    "WFSFulfilled:Shipped": 0
+    "WFSFulfilled:Delivered": 0,
+    "WFSFulfilled:Shipped": 1
   },
   "reconciliation": {
     "revenue_variance": 0.0,
     "unit_variance": 0
   },
-  "report_date": "2026-09-11",
+  "report_date": "2026-09-12",
   "schema_version": 1,
   "sku_line_items": [
     {
       "category": "Umbrellas",
-      "gross_revenue": 77.0,
-      "item_name": "Weatherman Collapsible Travel Umbrella Auto Open 40 Inches (Black)",
-      "sku": "FBM-12005-001-221-51",
+      "gross_revenue": 69.0,
+      "item_name": "Weatherman Travel Umbrellas for Rain - Compact Umbrella Windproof - Small Mini Umbrella - Portable Pocket Umbrella Auto Open Folding Foldable Car Umbrella - Backpack, Purse Rain Umbrellas (Sage)",
+      "sku": "FBM-10001-310-00007",
       "statuses": [
-        "Delivered"
+        "Shipped"
       ],
       "units": 1
     }
@@ -52,11 +52,11 @@
   "timezone": "America/New_York",
   "total_units": 1,
   "window_local": {
-    "end_exclusive": "2026-09-12T00:00:00 America/New_York",
-    "start_inclusive": "2026-09-11T00:00:00 America/New_York"
+    "end_exclusive": "2026-09-13T00:00:00 America/New_York",
+    "start_inclusive": "2026-09-12T00:00:00 America/New_York"
   },
   "window_utc": {
-    "end_exclusive": "2026-09-12T04:00:00Z",
-    "start_inclusive": "2026-09-11T04:00:00Z"
+    "end_exclusive": "2026-09-13T04:00:00Z",
+    "start_inclusive": "2026-09-12T04:00:00Z"
   }
 }
