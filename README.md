@@ -5,7 +5,7 @@ Automated previous-day revenue reporting across **Amazon (Sellerboard)**, **Shop
 1. A plain-text-style **Brevo HTML email** (Image 1 layout)
 2. A hosted **WEATHERMAN Daily Revenue Dashboard** under `docs/` (Image 2 layout)
 
-The GitHub Actions workflow runs daily at **12:00 UTC** (`0 12 * * *`) and can also be triggered via `workflow_dispatch` (`target_date`, `backfill`, `force_backfill`, `send_email`).
+The GitHub Actions workflow runs daily at **14:35 UTC (10:35 AM ET)** (`35 14 * * *`) and can also be triggered via `workflow_dispatch` (`target_date`, `backfill`, `force_backfill`, `send_email`).
 
 Hosted dashboard: https://mg22mex.github.io/Daily-revenue-by-sales-platform/
 

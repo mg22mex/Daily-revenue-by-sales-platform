@@ -2,8 +2,8 @@ name: Daily Revenue Report Pipeline
 
 on:
   schedule:
-    # Daily at 12:00 UTC
-    - cron: '0 12 * * *'
+    # Daily at 14:35 UTC (10:35 AM Eastern / EDT)
+    - cron: '35 14 * * *'
   workflow_dispatch:
     inputs:
       send_email:
