@@ -1600,22 +1600,22 @@
           "units": 290
         },
         "dsg": {
-          "available": false,
-          "orders": 0,
-          "revenue": 0.0,
-          "units": 0
+          "available": true,
+          "orders": 6,
+          "revenue": 215.1,
+          "units": 6
         },
         "nordstrom": {
-          "available": false,
-          "orders": 0,
-          "revenue": 0.0,
-          "units": 0
+          "available": true,
+          "orders": 1,
+          "revenue": 39.0,
+          "units": 1
         },
         "shopify_direct": {
-          "available": false,
-          "orders": 0,
-          "revenue": 0.0,
-          "units": 0
+          "available": true,
+          "orders": 54,
+          "revenue": 6897.68,
+          "units": 99
         },
         "walmart": {
           "available": true,
@@ -1625,8 +1625,8 @@
         }
       },
       "report_date": "2026-09-13",
-      "total_revenue": 16560.91,
-      "total_units": 290
+      "total_revenue": 23712.69,
+      "total_units": 396
     }
   }
 }
