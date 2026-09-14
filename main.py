@@ -57,7 +57,7 @@ ROOT = Path(__file__).resolve().parent
 DOCS_DIR = ROOT / "docs"
 ARCHIVE_PATH = ROOT / "data" / "daily_archive.json"
 
-SHOPIFY_API_VERSION = "2024-10"
+SHOPIFY_API_VERSION = "2026-07"
 WALMART_TOKEN_URL = "https://marketplace.walmartapis.com/v3/token"
 WALMART_ORDERS_URL = "https://marketplace.walmartapis.com/v3/orders"
 WALMART_STATUSES = ("Created", "Acknowledged", "Shipped", "Delivered")
@@ -65,7 +65,8 @@ WALMART_SHIP_NODE_TYPES = ("SellerFulfilled", "WFSFulfilled")
 BREVO_SMTP_URL = "https://api.brevo.com/v3/smtp/email"
 HTTP_TIMEOUT = 60
 HTTP_RETRIES = 3
-
+# Do not retry these — credentials / permission failures need a secret refresh, not backoff.
+HTTP_NO_RETRY_STATUS = {400, 401, 403, 404}
 
 def previous_day_et(now: datetime | None = None) -> date:
     current = now or datetime.now(ET)
@@ -120,7 +121,8 @@ def require_env(*keys: str) -> dict[str, str]:
     values: dict[str, str] = {}
     missing: list[str] = []
     for key in keys:
-        value = os.environ.get(key, "").strip()
+        # Strip whitespace/newlines that often sneak into GitHub Actions secrets.
+        value = os.environ.get(key, "").strip().strip('"').strip("'")
         if not value:
             missing.append(key)
         else:
@@ -128,6 +130,14 @@ def require_env(*keys: str) -> dict[str, str]:
     if missing:
         raise RuntimeError(f"Missing required environment variable(s): {', '.join(missing)}")
     return values
+
+
+def _http_error_detail(response: requests.Response) -> str:
+    """Compact root-cause string for logs and Unavailable cards."""
+    body = (response.text or "").strip().replace("\n", " ")
+    if len(body) > 400:
+        body = body[:400] + "…"
+    return f"HTTP {response.status_code}: {body or response.reason}"
 
 
 def http_request(
@@ -161,21 +171,20 @@ def http_request(
                 time.sleep(wait)
                 continue
             if response.status_code >= 400:
-                log.error(
-                    "HTTP %s from %s — response body: %s",
-                    response.status_code,
-                    url.split("?")[0],
-                    response.text,
-                )
+                detail = _http_error_detail(response)
+                log.error("%s — %s", url.split("?")[0], detail)
+                if response.status_code in HTTP_NO_RETRY_STATUS:
+                    raise RuntimeError(f"{url.split('?')[0]} → {detail}")
             response.raise_for_status()
             return response
+        except RuntimeError:
+            raise
         except requests.RequestException as exc:
             last_error = exc
             if attempt >= retries - 1:
                 break
             time.sleep(2**attempt)
     raise RuntimeError(f"HTTP request failed for {url}: {last_error}")
-
 
 def money_decimal(value: Any) -> Decimal:
     if isinstance(value, dict):
@@ -197,16 +206,184 @@ def empty_platforms() -> dict[str, PlatformMetrics]:
 # Shopify (Direct / DSG / Nordstrom)
 # ---------------------------------------------------------------------------
 
+# Process-local cache for client_credentials tokens (Shopify TTL ≈ 24h).
+_SHOPIFY_TOKEN_CACHE: dict[str, Any] = {"access_token": None, "expires_at": 0.0}
+
+
+def _shopify_store_host() -> str:
+    env = require_env("SHOPIFY_STORE_URL")
+    store = (
+        env["SHOPIFY_STORE_URL"]
+        .rstrip("/")
+        .removeprefix("https://")
+        .removeprefix("http://")
+        .split("/")[0]
+    )
+    if store.endswith(".myshopify.com"):
+        return store
+    # Allow bare shop slug (weatherman3) or full host.
+    if "." not in store:
+        return f"{store}.myshopify.com"
+    return store
+
+
+def _mask_secret(value: str, *, label: str) -> str:
+    """Safe diagnostic summary for secrets (never log the full value)."""
+    text = (value or "").strip()
+    if not text:
+        return f"{label}=MISSING"
+    prefix = text[:4] if len(text) >= 4 else text[:1]
+    return f"{label}=present len={len(text)} prefix={prefix!r}…"
+
+
+def get_shopify_access_token(*, force_refresh: bool = False) -> str:
+    """Exchange Dev Dashboard client credentials for a short-lived Admin API token.
+
+    POST https://{shop}.myshopify.com/admin/oauth/access_token
+    with grant_type=client_credentials. Tokens expire ~24h; cached in-process
+    and refreshed one minute before expiry.
+
+    Falls back to legacy ``SHOPIFY_ACCESS_TOKEN`` only when client credentials
+    are not configured (migration safety).
+    """
+    client_id = os.environ.get("SHOPIFY_CLIENT_ID", "").strip().strip('"').strip("'")
+    client_secret = os.environ.get("SHOPIFY_CLIENT_SECRET", "").strip().strip('"').strip("'")
+    legacy_token = os.environ.get("SHOPIFY_ACCESS_TOKEN", "").strip().strip('"').strip("'")
+    store_raw = os.environ.get("SHOPIFY_STORE_URL", "").strip()
+
+    log.info(
+        "Shopify OAuth env check: %s | %s | %s | SHOPIFY_STORE_URL=%s",
+        _mask_secret(client_id, label="SHOPIFY_CLIENT_ID"),
+        _mask_secret(client_secret, label="SHOPIFY_CLIENT_SECRET"),
+        _mask_secret(legacy_token, label="SHOPIFY_ACCESS_TOKEN"),
+        store_raw or "MISSING",
+    )
+
+    if client_id and client_secret:
+        now = time.time()
+        cached = _SHOPIFY_TOKEN_CACHE.get("access_token")
+        expires_at = float(_SHOPIFY_TOKEN_CACHE.get("expires_at") or 0)
+        if not force_refresh and cached and now < expires_at - 60:
+            log.info("Shopify OAuth: using cached access_token (expires_in≈%.0fs)", expires_at - now)
+            return str(cached)
+
+        host = _shopify_store_host()
+        token_url = f"https://{host}/admin/oauth/access_token"
+        log.info(
+            "Shopify OAuth: POST %s (grant_type=client_credentials, client_id_len=%s)",
+            token_url,
+            len(client_id),
+        )
+
+        # Call requests directly so we always capture status + body on failure
+        # (http_request raises before callers can inspect non-2xx bodies).
+        try:
+            response = requests.post(
+                token_url,
+                headers={
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Accept": "application/json",
+                },
+                data=urlencode(
+                    {
+                        "grant_type": "client_credentials",
+                        "client_id": client_id,
+                        "client_secret": client_secret,
+                    }
+                ),
+                timeout=HTTP_TIMEOUT,
+            )
+        except requests.RequestException as exc:
+            log.exception("Shopify OAuth: network error calling %s", token_url)
+            raise RuntimeError(
+                f"Shopify OAuth network error for {token_url}: {exc}"
+            ) from exc
+
+        body_text = (response.text or "").strip()
+        log.info(
+            "Shopify OAuth: status=%s content_type=%r body=%s",
+            response.status_code,
+            response.headers.get("Content-Type"),
+            body_text[:2000] if body_text else "<empty>",
+        )
+
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"Shopify OAuth token exchange failed: POST {token_url} "
+                f"→ HTTP {response.status_code} body={body_text[:800] or '<empty>'}"
+            )
+
+        try:
+            payload = response.json() if response.content else {}
+        except ValueError as exc:
+            raise RuntimeError(
+                f"Shopify OAuth returned non-JSON body from {token_url}: {body_text[:400]}"
+            ) from exc
+
+        access_token = str(payload.get("access_token") or "").strip()
+        if not access_token:
+            raise RuntimeError(
+                f"Shopify OAuth 200 but missing access_token from {token_url}: "
+                f"{str(payload)[:500]}"
+            )
+
+        expires_in = int(payload.get("expires_in") or 86399)
+        _SHOPIFY_TOKEN_CACHE["access_token"] = access_token
+        _SHOPIFY_TOKEN_CACHE["expires_at"] = now + max(60, expires_in)
+        log.info(
+            "Shopify OAuth: success token_prefix=%s… expires_in=%ss scope=%r",
+            access_token[:6],
+            expires_in,
+            payload.get("scope"),
+        )
+        return access_token
+
+    # Legacy static Admin API token (deprecated path).
+    if legacy_token:
+        log.warning(
+            "Using legacy SHOPIFY_ACCESS_TOKEN (len=%s prefix=%r…); "
+            "prefer SHOPIFY_CLIENT_ID + SHOPIFY_CLIENT_SECRET",
+            len(legacy_token),
+            legacy_token[:4],
+        )
+        return legacy_token
+
+    raise RuntimeError(
+        "Missing Shopify credentials: set SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET "
+        "(preferred), or legacy SHOPIFY_ACCESS_TOKEN. "
+        f"Env snapshot: {_mask_secret(client_id, label='SHOPIFY_CLIENT_ID')}, "
+        f"{_mask_secret(client_secret, label='SHOPIFY_CLIENT_SECRET')}, "
+        f"SHOPIFY_STORE_URL={store_raw or 'MISSING'}"
+    )
+
 
 def _shopify_endpoint() -> tuple[str, dict[str, str]]:
-    env = require_env("SHOPIFY_STORE_URL", "SHOPIFY_ACCESS_TOKEN")
-    store = env["SHOPIFY_STORE_URL"].rstrip("/").removeprefix("https://").removeprefix("http://")
+    host = _shopify_store_host()
+    token = get_shopify_access_token()
     headers = {
-        "X-Shopify-Access-Token": env["SHOPIFY_ACCESS_TOKEN"],
+        "X-Shopify-Access-Token": token,
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
-    return f"https://{store}/admin/api/{SHOPIFY_API_VERSION}/graphql.json", headers
+    return f"https://{host}/admin/api/{SHOPIFY_API_VERSION}/graphql.json", headers
+
+
+def _format_shopify_failure(exc: Exception) -> str:
+    """Human-readable Unavailable reason — keep OAuth status/body verbatim."""
+    text = str(exc).strip() or repr(exc)
+    # Prefer the full diagnostic string (already includes HTTP status + body).
+    if text.startswith("Shopify OAuth") or "client_credentials" in text.lower():
+        return text
+    if "401" in text or "403" in text or "Invalid API key" in text or "access token" in text.lower():
+        return (
+            "Shopify Admin API auth failed. "
+            "Verify SHOPIFY_CLIENT_ID / SHOPIFY_CLIENT_SECRET "
+            f"(client_credentials) and SHOPIFY_STORE_URL for API {SHOPIFY_API_VERSION}. "
+            f"Detail: {text}"
+        )
+    if "429" in text:
+        return f"Shopify rate limited (HTTP 429). Detail: {text}"
+    return text
 
 
 def _classify_shopify_channel(node: dict[str, Any]) -> str | None:
@@ -381,7 +558,13 @@ def fetch_shopify_channels(report_day: date) -> tuple[dict[str, PlatformMetrics]
 
         for edge in ((node.get("lineItems") or {}).get("edges") or []):
             item = edge.get("node") or {}
-            qty = int(item.get("quantity") or 0)
+            # Prefer GraphQL line-item quantity (units sold), never count rows as units.
+            try:
+                qty = int(item.get("quantity") or 0)
+            except (TypeError, ValueError):
+                qty = 0
+            if qty < 0:
+                qty = 0
             title = str(item.get("title") or "")
             sku = str(item.get("sku") or "UNKNOWN")
             line_rev = money_decimal(
@@ -1181,12 +1364,19 @@ def compute_ad_metrics(
 
 
 def dashboard_public_url(report_day: date) -> str:
-    base = os.environ.get("DASHBOARD_PUBLIC_URL", "").strip().rstrip("/")
+    """Public GitHub Pages URL for the dated dashboard artifact.
+
+    Always returns ``…/{YYYY-MM-DD}.html`` so historical Brevo emails keep working
+    after ``index.html`` is overwritten by a later run.
+    """
+    default_base = "https://mg22mex.github.io/Daily-revenue-by-sales-platform"
+    base = os.environ.get("DASHBOARD_PUBLIC_URL", "").strip() or default_base
+    base = base.rstrip("/")
+    # Secrets sometimes include /index.html or another filename — strip to the site root.
+    if base.lower().endswith(".html"):
+        base = base.rsplit("/", 1)[0].rstrip("/")
     if not base:
-        # Local / repo-relative fallback used in CTA when Pages URL is not configured.
-        return f"docs/{report_day.isoformat()}.html"
-    if base.endswith(".html"):
-        return base
+        base = default_base
     return f"{base}/{report_day.isoformat()}.html"
 
 
@@ -1205,12 +1395,14 @@ def assemble_report(report_day: date) -> DailyReport:
         sku_rows.extend(shopify_skus)
         status_lines.append("Shopify Direct + DSG + Nordstrom variance $0.00 / 0 units")
     except Exception as exc:
-        log.exception("Shopify ingestion failed")
+        reason = _format_shopify_failure(exc)
+        log.error("Shopify ingestion failed — channel Unavailable reason: %s", reason)
+        log.exception("Shopify ingestion stacktrace")
         for key in ("shopify_direct", "dsg", "nordstrom"):
             platforms[key] = PlatformMetrics(
-                key=key, label=PLATFORM_LABELS[key], available=False, error=str(exc)
+                key=key, label=PLATFORM_LABELS[key], available=False, error=reason
             )
-        status_lines.append("Shopify channels unavailable")
+        status_lines.append(f"Shopify channels unavailable: {reason}")
 
     # Walmart
     try:
@@ -1981,7 +2173,14 @@ def main() -> None:
         target = resolve_target_date()
     demo = args.demo
     has_live_creds = bool(
-        os.getenv("SHOPIFY_ACCESS_TOKEN", "").strip()
+        (
+            (
+                os.getenv("SHOPIFY_CLIENT_ID", "").strip()
+                and os.getenv("SHOPIFY_CLIENT_SECRET", "").strip()
+            )
+            or os.getenv("SHOPIFY_ACCESS_TOKEN", "").strip()
+        )
+        and os.getenv("SHOPIFY_STORE_URL", "").strip()
         and os.getenv("WALMART_CLIENT_ID", "").strip()
         and os.getenv("SELLERBOARD_DAILY_URL", "").strip()
     )

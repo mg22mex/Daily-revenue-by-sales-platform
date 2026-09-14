@@ -45,8 +45,18 @@ def build_email_html(report: DailyReport) -> str:
         ]
     )
 
-    button_label = f"Daily Revenue Dashboard {day.strftime('%m %d %y')}"
-    dashboard_url = report.dashboard_url or "#"
+    button_label = f"Daily Revenue Dashboard {day.strftime('%m-%d-%Y')}"
+    # Prefer the report's dated Pages URL; never fall back to a bare /index.html CTA.
+    dashboard_url = (report.dashboard_url or "").strip()
+    if (
+        not dashboard_url
+        or dashboard_url.endswith("/index.html")
+        or dashboard_url.rstrip("/").endswith("Daily-revenue-by-sales-platform")
+    ):
+        dashboard_url = (
+            "https://mg22mex.github.io/Daily-revenue-by-sales-platform/"
+            f"{day.isoformat()}.html"
+        )
 
     return f"""<!DOCTYPE html>
 <html>

@@ -15,7 +15,7 @@ Hosted dashboard: https://mg22mex.github.io/Daily-revenue-by-sales-platform/
 
 | Integration | Mechanism | Auth | Refresh / window | Rate limits & notes |
 |---|---|---|---|---|
-| **Shopify** | Admin GraphQL `orders` (+ line items, tags, channel info) | Admin API token | Target day `America/New_York` | Split into Shopify Direct / DSG / Nordstrom via tags + channel name. Post-filters `createdAt` to the ET calendar day; excludes draft/POS/void/cancelled. Retries `429`/`5xx`. |
+| **Shopify** | Admin GraphQL `orders` (+ line items, tags, channel info) | Dev Dashboard `client_credentials` (`SHOPIFY_CLIENT_ID` / `SHOPIFY_CLIENT_SECRET`) → short-lived `X-Shopify-Access-Token` | Target day `America/New_York` | Split into Shopify Direct / DSG / Nordstrom via tags + channel name. Post-filters `createdAt` to the ET calendar day; excludes draft/POS/void/cancelled. Retries `429`/`5xx` only. |
 | **Walmart** | Marketplace Orders API after OAuth | Client credentials | Target day ET | Status × fulfillment matrix, then dedupe. Category + SKU rollups included. |
 | **Sellerboard** | Permanent automation CSV `GET` | Token in URL | Daily + product exports | Daily CSV → Amazon revenue / units / Real ACOS. **Product (Dashboard by Product) CSV** → Amazon SKU drilldown + category matrix. Dates default to **DD/MM** (EU). |
 | **Brevo** | `POST /v3/smtp/email` | API key | Each successful run | Subject: `Daily revenue by sales platform — YYYY-MM-DD`. CTA links to hosted dashboard. |
@@ -64,7 +64,7 @@ flowchart LR
 - Revenue by sales platform (5 channels + Total)
 - Category unit totals
 - Ad metrics (Amazon Real ACOS, Shopify blended COS, revenue per ad dollar)
-- Blue CTA `#1A73E8` → hosted dashboard URL
+- Blue CTA `#1A73E8` → **dated** hosted dashboard URL (`…/{YYYY-MM-DD}.html`), labeled `Daily Revenue Dashboard MM-DD-YYYY`
 
 ### Dashboard (Image 2)
 Written to:
@@ -76,7 +76,7 @@ Sections: navy WEATHERMAN header, period overview cards, platform performance, a
 
 There is **no** green status banner on the dashboard; operational notes stay in logs / email only.
 
-Enable **GitHub Pages** from the `docs/` folder on `main`, then set secret `DASHBOARD_PUBLIC_URL` to the Pages base URL (no trailing file name), e.g. `https://mg22mex.github.io/Daily-revenue-by-sales-platform`.
+Enable **GitHub Pages** from the `docs/` folder on `main`, then set secret `DASHBOARD_PUBLIC_URL` to the Pages **site root** (no trailing file name), e.g. `https://mg22mex.github.io/Daily-revenue-by-sales-platform`. Each run writes `docs/{YYYY-MM-DD}.html` and copies it to `docs/index.html`; Brevo CTAs always link the dated file so older emails keep resolving.
 
 ---
 
@@ -99,7 +99,8 @@ Enable **GitHub Pages** from the `docs/` folder on `main`, then set secret `DASH
 | Sellerboard temporary URLs return HTML | Use permanent automation links only; HTML responses mark Amazon Unavailable |
 | Sellerboard DD/MM vs MM/DD | Default DMY + day-first detection; set `SELLERBOARD_DAYFIRST=us` only for US-formatted exports |
 | Amazon KPI without SKUs | Ensure product URL is itemized (Dashboard by Product / Orders), not daily aggregate-only |
-| Shopify channel misclassification | Tags / `sourceName` / channel definition; Nordstrom + DSG keywords; remainder → Shopify Direct |
+| Shopify Admin API 401 / Unavailable channels | Use Dev Dashboard **client_credentials**: secrets `SHOPIFY_CLIENT_ID` + `SHOPIFY_CLIENT_SECRET` (+ `SHOPIFY_STORE_URL`). Pipeline exchanges them for a short-lived token each run (API `2026-07`); no retry on 401/403 |
+| Amazon umbrella titles mentioning “Backpack” | Classify **umbrella** before use-case keywords; map `WM-40002-*` Venture Dry Pack to backpack |
 | Shopify Direct inflation | Date-only query tokens + ET calendar-day post-filter; exclude draft/POS/void/cancelled |
 | Shopify ad spend not in Admin API | `SHOPIFY_AD_SPEND`, or dated JSON/CSV (`data/shopify_ad_spend.json`) |
 | Partial API failures | Per-source try/except; email/dashboard still publish |
@@ -111,8 +112,9 @@ Enable **GitHub Pages** from the `docs/` folder on `main`, then set secret `DASH
 
 | Secret / env | Required | Purpose |
 |---|---|---|
-| `SHOPIFY_ACCESS_TOKEN` | Yes | Admin API token |
-| `SHOPIFY_STORE_URL` | Yes | `your-store.myshopify.com` |
+| `SHOPIFY_CLIENT_ID` / `SHOPIFY_CLIENT_SECRET` | Yes | Dev Dashboard app credentials → `client_credentials` Admin token |
+| `SHOPIFY_STORE_URL` | Yes | `weatherman3.myshopify.com` (or shop slug) |
+| `SHOPIFY_ACCESS_TOKEN` | Optional | Legacy static Admin token fallback only |
 | `WALMART_CLIENT_ID` / `WALMART_CLIENT_SECRET` | Yes | Marketplace OAuth |
 | `SELLERBOARD_DAILY_URL` / `SELLERBOARD_PRODUCT_URL` | Yes | Permanent CSV automation URLs (daily + product) |
 | `SELLERBOARD_DAYFIRST` | Optional | `true`/`dmy` (default) or `us`/`0` for MM/DD exports |
@@ -120,7 +122,7 @@ Enable **GitHub Pages** from the `docs/` folder on `main`, then set secret `DASH
 | `REPORT_RECIPIENTS` | Yes | Comma/semicolon emails |
 | `BREVO_SENDER_EMAIL` | Recommended | Verified Brevo sender |
 | `BREVO_SENDER_NAME` | Optional | Default `Weatherman Revenue` |
-| `DASHBOARD_PUBLIC_URL` | Recommended | GitHub Pages base URL for CTA |
+| `DASHBOARD_PUBLIC_URL` | Recommended | GitHub Pages **site root** (no filename). CTA always appends `/{YYYY-MM-DD}.html` |
 | `SHOPIFY_AD_SPEND` | Optional | Day’s Shopify ad spend (USD) |
 | `SHOPIFY_ADS_JSON_PATH` / `SHOPIFY_ADS_CSV_*` | Optional | Dated ad-spend feeds |
 | `REPORT_GREETING_NAME` | Optional | Default `Rick` |
