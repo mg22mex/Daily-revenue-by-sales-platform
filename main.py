@@ -227,6 +227,19 @@ def _shopify_store_host() -> str:
     return store
 
 
+def _redact_oauth_body(body_text: str) -> str:
+    """Strip access_token values from OAuth JSON before logging."""
+    if not body_text:
+        return "<empty>"
+    redacted = re.sub(
+        r'("access_token"\s*:\s*")[^"]*(")',
+        r'\1[REDACTED]\2',
+        body_text,
+        flags=re.IGNORECASE,
+    )
+    return redacted[:2000]
+
+
 def _mask_secret(value: str, *, label: str) -> str:
     """Safe diagnostic summary for secrets (never log the full value)."""
     text = (value or "").strip()
@@ -304,13 +317,13 @@ def get_shopify_access_token(*, force_refresh: bool = False) -> str:
             "Shopify OAuth: status=%s content_type=%r body=%s",
             response.status_code,
             response.headers.get("Content-Type"),
-            body_text[:2000] if body_text else "<empty>",
+            _redact_oauth_body(body_text),
         )
 
         if response.status_code != 200:
             raise RuntimeError(
                 f"Shopify OAuth token exchange failed: POST {token_url} "
-                f"→ HTTP {response.status_code} body={body_text[:800] or '<empty>'}"
+                f"→ HTTP {response.status_code} body={_redact_oauth_body(body_text)}"
             )
 
         try:
