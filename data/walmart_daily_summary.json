@@ -6,7 +6,7 @@
     "Shirts": 0,
     "Umbrellas": 0
   },
-  "generated_at_utc": "2026-09-14T19:23:46.765364Z",
+  "generated_at_utc": "2026-09-15T18:13:35.204058Z",
   "gross_revenue": 0.0,
   "order_count": 0,
   "queried_ship_node_types": [
@@ -33,7 +33,7 @@
     "revenue_variance": 0.0,
     "unit_variance": 0
   },
-  "report_date": "2026-09-13",
+  "report_date": "2026-09-14",
   "schema_version": 1,
   "sku_line_items": [],
   "source": "Walmart Marketplace Orders API",
@@ -41,11 +41,11 @@
   "timezone": "America/New_York",
   "total_units": 0,
   "window_local": {
-    "end_exclusive": "2026-09-14T00:00:00 America/New_York",
-    "start_inclusive": "2026-09-13T00:00:00 America/New_York"
+    "end_exclusive": "2026-09-15T00:00:00 America/New_York",
+    "start_inclusive": "2026-09-14T00:00:00 America/New_York"
   },
   "window_utc": {
-    "end_exclusive": "2026-09-14T04:00:00Z",
-    "start_inclusive": "2026-09-13T04:00:00Z"
+    "end_exclusive": "2026-09-15T04:00:00Z",
+    "start_inclusive": "2026-09-14T04:00:00Z"
   }
 }
