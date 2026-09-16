@@ -1261,7 +1261,12 @@ def fetch_amazon_sellerboard(
     else:
         daily_sales_raw = revenue
         promo_raw = _sum_numeric(filtered, promo_col) if promo_col else Decimal("0")
-        if promo_col and promo_raw != 0:
+        # Promo add-back only for a single net Sales column — Organic+PPC already
+        # reflect order-day product sales comparable to Seller Central OPS.
+        used_breakdown = len(sales_cols_used) >= 2 or any(
+            "organic" in c.lower() or "ppc" in c.lower() for c in sales_cols_used
+        )
+        if promo_col and promo_raw != 0 and not used_breakdown:
             gross_candidate = daily_sales_raw + abs(promo_raw)
             if gross_candidate > revenue:
                 log.info(
