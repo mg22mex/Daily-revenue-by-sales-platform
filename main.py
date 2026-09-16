@@ -494,7 +494,11 @@ def _created_at_et_date(node: dict[str, Any]) -> date | None:
         return None
 
 
-def _iter_shopify_orders(report_day: date) -> list[dict[str, Any]]:
+def _iter_shopify_orders(
+    report_day: date,
+    *,
+    extra_search: str | None = None,
+) -> list[dict[str, Any]]:
     endpoint, headers = _shopify_endpoint()
     start, end, start_token, end_token = shopify_day_bounds(report_day)
     query = """
@@ -541,6 +545,8 @@ def _iter_shopify_orders(report_day: date) -> list[dict[str, Any]]:
         f"created_at:>={start_token} created_at:<{end_token} "
         f"-status:cancelled -status:abandoned"
     )
+    if extra_search:
+        search = f"({search}) AND ({extra_search})"
     log.info(
         "Shopify query target_date=%s search=%r et_bounds=[%s, %s)",
         report_day.isoformat(),
@@ -569,6 +575,21 @@ def _iter_shopify_orders(report_day: date) -> list[dict[str, Any]]:
             created_day = _created_at_et_date(node)
             if created_day != report_day:
                 skipped_tz += 1
+                # Keep marketplace-tagged orders even if shop-TZ search drifted;
+                # still require ET calendar day match above — just log context.
+                tags = node.get("tags") or []
+                blob = " ".join(
+                    [str(tags), str(node.get("sourceName") or ""), str((node.get("app") or {}).get("name") or "")]
+                ).lower()
+                if _looks_like_nordstrom(blob, [str(t).lower() for t in (tags if isinstance(tags, list) else str(tags).split(","))]):
+                    log.warning(
+                        "Shopify Nordstrom-like order %s dropped by ET day filter "
+                        "(createdAt=%s, et_day=%s, target=%s)",
+                        node.get("name"),
+                        node.get("createdAt"),
+                        created_day,
+                        report_day.isoformat(),
+                    )
                 continue
             nodes.append(node)
         page = orders.get("pageInfo") or {}
@@ -587,6 +608,20 @@ def _iter_shopify_orders(report_day: date) -> list[dict[str, Any]]:
     return nodes
 
 
+def _merge_shopify_orders(*batches: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Dedupe Shopify order nodes by id/name across supplemental queries."""
+    merged: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for batch in batches:
+        for node in batch:
+            key = str(node.get("id") or node.get("name") or "")
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            merged.append(node)
+    return merged
+
+
 def fetch_shopify_channels(report_day: date) -> tuple[dict[str, PlatformMetrics], dict[str, dict[str, int]], list[SkuRow]]:
     start, end, _, _ = shopify_day_bounds(report_day)
     log.info(
@@ -595,7 +630,19 @@ def fetch_shopify_channels(report_day: date) -> tuple[dict[str, PlatformMetrics]
         start.isoformat(),
         end.isoformat(),
     )
-    nodes = _iter_shopify_orders(report_day)
+    nodes = _merge_shopify_orders(
+        _iter_shopify_orders(report_day),
+        # Supplemental marketplace pull — catches Nordstrom EDI tags that the
+        # broad day query can miss when channel apps create delayed records.
+        _iter_shopify_orders(
+            report_day,
+            extra_search=(
+                "tag:Nordstrom OR tag:nordstrom OR tag:Nordstrom.com OR "
+                "tag:Nordstrom-Rack OR tag:nordstrom-rack OR tag:NR OR "
+                "tag:nordstrom-market"
+            ),
+        ),
+    )
 
     platforms = {
         key: PlatformMetrics(key=key, label=PLATFORM_LABELS[key], available=True)
@@ -686,6 +733,22 @@ def fetch_shopify_channels(report_day: date) -> tuple[dict[str, PlatformMetrics]
         for sample in excluded_samples:
             log.info("Shopify excluded sample: %s", sample)
     log.info("Shopify classify counts: %s", classify_counts)
+    # Surface Direct tag samples so marketplace mis-routes are visible in Actions logs.
+    direct_tag_samples: list[str] = []
+    for node in nodes:
+        if _classify_shopify_channel(node) != "shopify_direct":
+            continue
+        if len(direct_tag_samples) >= 8:
+            break
+        channel = ((node.get("channelInformation") or {}).get("channelDefinition") or {})
+        direct_tag_samples.append(
+            f"{node.get('name')}: tags={node.get('tags')!r} "
+            f"source={node.get('sourceName')!r} "
+            f"channel={channel.get('channelName')!r}/{channel.get('subChannelName')!r} "
+            f"app={(node.get('app') or {}).get('name')!r}"
+        )
+    for sample in direct_tag_samples:
+        log.info("Shopify Direct sample: %s", sample)
     for platform in platforms.values():
         log.info(
             "%s: revenue=%s orders=%s units=%s",
@@ -850,9 +913,14 @@ def _first_matching_column(df: Any, candidates: tuple[str, ...]) -> str | None:
     for candidate in candidates:
         if candidate.lower() in normalized:
             return normalized[candidate.lower()]
-    for key, original in normalized.items():
-        for candidate in candidates:
-            if candidate.lower() in key:
+    for candidate in candidates:
+        needle = candidate.lower()
+        # Avoid bare "sales"/"units" substring hits on SalesOrganic / UnitsPPC —
+        # those breakdown columns are summed separately.
+        if needle in {"sales", "units", "revenue", "orders"}:
+            continue
+        for key, original in normalized.items():
+            if needle in key:
                 return original
     return None
 
@@ -872,6 +940,56 @@ def _sum_numeric(df: Any, column: str | None) -> Decimal:
     if series.empty:
         return Decimal("0")
     return money_decimal(series.sum())
+
+
+def _sum_sellerboard_metric_group(
+    df: Any, *, prefix: str, exact_fallbacks: tuple[str, ...]
+) -> tuple[Decimal, list[str]]:
+    """Sum Sellerboard breakdown columns without double-counting PPC splits.
+
+    Automation exports often expose ``SalesOrganic`` + ``SalesPPC`` (and nested
+    ``SalesSponsoredProducts`` / ``SalesSponsoredDisplay``). Total sales =
+    Organic + PPC. Nested sponsored columns are subsets of PPC and must not be
+    added again.
+    """
+    if df is None or getattr(df, "empty", True):
+        return Decimal("0"), []
+
+    normalized = {str(col).strip().lower().replace(" ", ""): col for col in df.columns}
+    for name in exact_fallbacks:
+        key = name.lower().replace(" ", "")
+        if key in normalized:
+            col = normalized[key]
+            # Exact total only (reject SalesOrganic when looking up "Sales").
+            if str(col).strip().lower().replace(" ", "") == key:
+                return _sum_numeric(df, col), [str(col)]
+
+    prefix_l = prefix.lower().replace(" ", "")
+    organic_key = f"{prefix_l}organic"
+    ppc_key = f"{prefix_l}ppc"
+    if organic_key in normalized or ppc_key in normalized:
+        matched: list[str] = []
+        total = Decimal("0")
+        for key in (organic_key, ppc_key):
+            if key in normalized:
+                col = normalized[key]
+                matched.append(str(col))
+                total += _sum_numeric(df, col)
+        return money_decimal(total), matched
+
+    skip_bits = ("refund", "fee", "cost", "acos", "profit", "payout", "session", "ads")
+    matched = []
+    total = Decimal("0")
+    for key, col in normalized.items():
+        if not key.startswith(prefix_l):
+            continue
+        if any(bit in key for bit in skip_bits):
+            continue
+        matched.append(str(col))
+        total += _sum_numeric(df, col)
+    if matched:
+        return money_decimal(total), matched
+    return Decimal("0"), []
 
 
 def _load_sellerboard_csv(url: str, label: str) -> Any:
@@ -1110,30 +1228,29 @@ def fetch_amazon_sellerboard(
     product_df = _load_sellerboard_csv(env["SELLERBOARD_PRODUCT_URL"], "product")
     filtered = _filter_daily_rows(daily_df, report_day, label="daily")
 
-    # Prefer Amazon Seller Central–style Ordered Product Sales / Gross over net "Sales"
-    # (net Sales is often promo/refund-adjusted and under-reports vs TripleWhale / SC).
-    sales_col = _first_matching_column(
+    # Prefer Amazon Seller Central–style totals. Sellerboard automation CSVs often
+    # expose SalesOrganic / SalesPPC / SalesSponsored* instead of a single Sales col.
+    # Substring match on "Sales" previously kept only SalesOrganic (~under-report).
+    revenue, sales_cols_used = _sum_sellerboard_metric_group(
         filtered,
-        (
-            "Ordered Product Sales",
-            "Gross Sales",
-            "Sales USD",
-            "Revenue",
-            "Sales",
-            "Amount",
-        ),
+        prefix="sales",
+        exact_fallbacks=("Ordered Product Sales", "Gross Sales", "Sales", "Revenue", "Sales USD"),
     )
-    units_col = _first_matching_column(
+    units_dec, units_cols_used = _sum_sellerboard_metric_group(
         filtered,
-        ("Units Ordered", "Units Sold", "Ordered Units", "Units", "Quantity", "Orders", "Order Count"),
+        prefix="units",
+        exact_fallbacks=("Units Ordered", "Units Sold", "Ordered Units", "Units"),
     )
+    units = int(units_dec)
     orders_col = _first_matching_column(filtered, ("Orders", "Order Count"))
     acos_col = _first_matching_column(filtered, ("Real ACOS", "ACOS", "ACoS", "ACOS %"))
     promo_col = _first_matching_column(
-        filtered, ("Promo", "Promotions", "Promotion", "Discounts", "Promo Value")
+        filtered, ("PromoValue", "Promo", "Promotions", "Promotion", "Discounts")
     )
+    sales_col = sales_cols_used[0] if sales_cols_used else None
+    units_col = units_cols_used[0] if units_cols_used else None
 
-    # Daily headline metrics come from date-matched daily rows (ET calendar day via CSV Date).
+    # Daily headline metrics come from date-matched daily rows (CSV Date = calendar day).
     if filtered.empty:
         revenue = Decimal("0")
         units = 0
@@ -1142,40 +1259,38 @@ def fetch_amazon_sellerboard(
         daily_sales_raw = Decimal("0")
         promo_raw = Decimal("0")
     else:
-        daily_sales_raw = _sum_numeric(filtered, sales_col)
+        daily_sales_raw = revenue
         promo_raw = _sum_numeric(filtered, promo_col) if promo_col else Decimal("0")
-        # If Promo is a discount amount, restore gross-like total for ops reporting.
-        revenue = daily_sales_raw
         if promo_col and promo_raw != 0:
-            # Sellerboard Promo is typically the discount magnitude (positive) or a
-            # negative adjustment already applied to Sales. Use the larger gross signal.
             gross_candidate = daily_sales_raw + abs(promo_raw)
             if gross_candidate > revenue:
                 log.info(
-                    "Sellerboard daily: Sales=%s Promo(%s)=%s → using Sales+|Promo|=%s",
+                    "Sellerboard daily: sales_parts=%s sum=%s Promo(%s)=%s → using sum+|Promo|=%s",
+                    sales_cols_used,
                     daily_sales_raw,
                     promo_col,
                     promo_raw,
                     gross_candidate,
                 )
                 revenue = gross_candidate
-        units = int(_sum_numeric(filtered, units_col))
+        if units <= 0 and orders_col:
+            units = int(_sum_numeric(filtered, orders_col))
         order_count = int(_sum_numeric(filtered, orders_col)) if orders_col else units
         amazon_acos = None
         if acos_col is not None:
             acos_series = _series_numeric(filtered, acos_col)
-            if not acos_series.empty and revenue > 0 and sales_col:
-                weights = _series_numeric(filtered, sales_col)
+            weight_col = sales_cols_used[0] if sales_cols_used else None
+            if not acos_series.empty and revenue > 0 and weight_col:
+                weights = _series_numeric(filtered, weight_col)
                 amazon_acos = money_decimal((acos_series * weights).sum() / weights.sum())
             elif not acos_series.empty:
                 amazon_acos = money_decimal(acos_series.mean())
 
-        # Diagnostic: dump matched daily metric columns (no secrets).
         sample_cols = [
             c
             for c in (
-                sales_col,
-                units_col,
+                *sales_cols_used[:6],
+                *units_cols_used[:6],
                 orders_col,
                 promo_col,
                 acos_col,
@@ -1183,18 +1298,24 @@ def fetch_amazon_sellerboard(
             )
             if c
         ]
-        preview = filtered[sample_cols].head(5).to_dict(orient="records") if sample_cols else []
+        deduped: list[str] = []
+        seen_cols: set[str] = set()
+        for col in sample_cols:
+            if col not in seen_cols:
+                seen_cols.add(col)
+                deduped.append(col)
+        preview = filtered[deduped].head(5).to_dict(orient="records") if deduped else []
         log.info(
-            "Sellerboard daily metrics for %s: sales_col=%r units_col=%r "
+            "Sellerboard daily metrics for %s: sales_cols=%s units_cols=%s "
             "rows=%s revenue=%s units=%s preview=%s columns=%s",
             report_day.isoformat(),
-            sales_col,
-            units_col,
+            sales_cols_used,
+            units_cols_used,
             len(filtered),
             revenue,
             units,
             preview,
-            list(filtered.columns)[:25],
+            list(filtered.columns)[:30],
         )
 
     cats = empty_category_counts()
