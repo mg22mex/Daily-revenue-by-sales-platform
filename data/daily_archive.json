@@ -1670,7 +1670,7 @@
         "amazon": {
           "available": true,
           "orders": 149,
-          "revenue": 8208.76,
+          "revenue": 8225.66,
           "units": 149
         },
         "dsg": {
@@ -1699,7 +1699,7 @@
         }
       },
       "report_date": "2026-09-15",
-      "total_revenue": 11488.6,
+      "total_revenue": 11505.5,
       "total_units": 197
     }
   }
