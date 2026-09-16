@@ -1681,9 +1681,9 @@
         },
         "nordstrom": {
           "available": true,
-          "orders": 0,
-          "revenue": 0.0,
-          "units": 0
+          "orders": 8,
+          "revenue": 791.0,
+          "units": 10
         },
         "shopify_direct": {
           "available": true,
@@ -1699,8 +1699,8 @@
         }
       },
       "report_date": "2026-09-15",
-      "total_revenue": 13892.67,
-      "total_units": 205
+      "total_revenue": 14683.67,
+      "total_units": 215
     }
   }
 }
