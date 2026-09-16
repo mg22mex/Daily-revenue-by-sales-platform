@@ -403,25 +403,45 @@ def _classify_shopify_channel(node: dict[str, Any]) -> str | None:
     """Return channel key, or None when the order should be excluded from Direct."""
     tags = node.get("tags") or []
     if isinstance(tags, str):
-        tag_bits = [t.strip().lower() for t in tags.split(",")]
+        tag_bits = [t.strip().lower() for t in tags.split(",") if t and str(t).strip()]
     else:
-        tag_bits = [str(t).strip().lower() for t in tags]
+        tag_bits = [str(t).strip().lower() for t in tags if t and str(t).strip()]
 
     channel = ((node.get("channelInformation") or {}).get("channelDefinition") or {})
     source = str(node.get("sourceName") or "").strip().lower()
+    app_name = str(((node.get("app") or {}).get("name") or "")).strip().lower()
+    note = str(node.get("note") or "").strip().lower()
+
+    attr_bits: list[str] = []
+    for attr in node.get("customAttributes") or []:
+        if not isinstance(attr, dict):
+            continue
+        attr_bits.append(str(attr.get("key") or ""))
+        attr_bits.append(str(attr.get("value") or ""))
+
     blob = " ".join(
         [
             *tag_bits,
+            *attr_bits,
             source,
+            app_name,
+            note,
             str(channel.get("channelName") or ""),
             str(channel.get("subChannelName") or ""),
             str(node.get("name") or ""),
         ]
     ).lower()
 
-    if "nordstrom" in blob:
+    # Marketplace / wholesale partners — match before draft/POS exclusion.
+    if _looks_like_nordstrom(blob, tag_bits):
         return "nordstrom"
-    if "dick" in blob or re.search(r"\bdsg\b", blob) or "sporting goods" in blob:
+    if (
+        "dick" in blob
+        or re.search(r"\bdsg\b", blob)
+        or "sporting goods" in blob
+        or "dick's" in blob
+        or "dicks" in blob
+    ):
         return "dsg"
 
     # Draft / POS / wholesale giveaways inflate Direct vs TripleWhale baseline.
@@ -437,6 +457,27 @@ def _classify_shopify_channel(node: dict[str, Any]) -> str | None:
         return None
 
     return "shopify_direct"
+
+
+def _looks_like_nordstrom(blob: str, tag_bits: list[str]) -> bool:
+    """Nordstrom / Nordstrom Rack / EDI marketplace identifiers."""
+    if "nordstrom" in blob:
+        return True
+    if "nordstrom-market" in blob or "nordstrom_market" in blob:
+        return True
+    if "nord rack" in blob or "nordstrom rack" in blob or "n-rack" in blob:
+        return True
+    if re.search(r"\bnrack\b", blob) or re.search(r"\bnrd\b", blob):
+        return True
+    # Common EDI / marketplace tag tokens used on Weatherman Shopify
+    for tag in tag_bits:
+        if tag in {"nordstrom", "nordstrom.com", "nordstromrack", "nordstrom-rack", "ns", "nr"}:
+            return True
+        if "nordstrom" in tag or tag.startswith("nord"):
+            return True
+    if "edi" in blob and "nord" in blob:
+        return True
+    return False
 
 
 def _created_at_et_date(node: dict[str, Any]) -> date | None:
@@ -467,11 +508,16 @@ def _iter_shopify_orders(report_day: date) -> list[dict[str, Any]]:
             sourceName
             createdAt
             cancelledAt
+            note
             displayFinancialStatus
+            displayFulfillmentStatus
+            app { name }
+            customAttributes { key value }
             channelInformation {
               channelDefinition { channelName subChannelName }
             }
             totalPriceSet { shopMoney { amount currencyCode } }
+            currentTotalPriceSet { shopMoney { amount currencyCode } }
             lineItems(first: 100) {
               edges {
                 node {
@@ -479,6 +525,7 @@ def _iter_shopify_orders(report_day: date) -> list[dict[str, Any]]:
                   title
                   quantity
                   originalTotalSet { shopMoney { amount } }
+                  discountedTotalSet { shopMoney { amount } }
                 }
               }
             }
@@ -557,17 +604,38 @@ def fetch_shopify_channels(report_day: date) -> tuple[dict[str, PlatformMetrics]
     categories = {key: empty_category_counts() for key in ("shopify_direct", "dsg", "nordstrom")}
     skus: list[SkuRow] = []
     excluded = 0
+    excluded_samples: list[str] = []
+    classify_counts: dict[str, int] = {"shopify_direct": 0, "dsg": 0, "nordstrom": 0, "excluded": 0}
 
     for node in nodes:
         channel_key = _classify_shopify_channel(node)
         if channel_key is None:
             excluded += 1
+            classify_counts["excluded"] += 1
+            if len(excluded_samples) < 12:
+                tags = node.get("tags") or []
+                channel = ((node.get("channelInformation") or {}).get("channelDefinition") or {})
+                excluded_samples.append(
+                    f"{node.get('name')}: source={node.get('sourceName')!r} "
+                    f"fin={node.get('displayFinancialStatus')!r} "
+                    f"tags={tags!r} channel={channel.get('channelName')!r}/"
+                    f"{channel.get('subChannelName')!r} app={(node.get('app') or {}).get('name')!r}"
+                )
             continue
+        classify_counts[channel_key] = classify_counts.get(channel_key, 0) + 1
         platform = platforms[channel_key]
         platform.order_count += 1
-        platform.revenue += money_decimal(
-            ((node.get("totalPriceSet") or {}).get("shopMoney") or {}).get("amount")
+        # Prefer currentTotalPriceSet (post-edit) then totalPriceSet; marketplace EDI
+        # sometimes leaves one of them at 0 while line items still have value.
+        order_rev = money_decimal(
+            ((node.get("currentTotalPriceSet") or {}).get("shopMoney") or {}).get("amount")
         )
+        if order_rev <= 0:
+            order_rev = money_decimal(
+                ((node.get("totalPriceSet") or {}).get("shopMoney") or {}).get("amount")
+            )
+        line_rev_sum = Decimal("0")
+        line_units = 0
 
         for edge in ((node.get("lineItems") or {}).get("edges") or []):
             item = edge.get("node") or {}
@@ -581,8 +649,14 @@ def fetch_shopify_channels(report_day: date) -> tuple[dict[str, PlatformMetrics]
             title = str(item.get("title") or "")
             sku = str(item.get("sku") or "UNKNOWN")
             line_rev = money_decimal(
-                ((item.get("originalTotalSet") or {}).get("shopMoney") or {}).get("amount")
+                ((item.get("discountedTotalSet") or {}).get("shopMoney") or {}).get("amount")
             )
+            if line_rev <= 0:
+                line_rev = money_decimal(
+                    ((item.get("originalTotalSet") or {}).get("shopMoney") or {}).get("amount")
+                )
+            line_rev_sum += line_rev
+            line_units += qty
             cat = category_for(title, sku)
             categories[channel_key][cat] = categories[channel_key].get(cat, 0) + qty
             platform.units += qty
@@ -596,8 +670,22 @@ def fetch_shopify_channels(report_day: date) -> tuple[dict[str, PlatformMetrics]
                 )
             )
 
+        if order_rev <= 0 and line_rev_sum > 0:
+            order_rev = line_rev_sum
+            log.info(
+                "Shopify %s %s: order total missing — using line-item sum %s (%s units)",
+                channel_key,
+                node.get("name"),
+                order_rev,
+                line_units,
+            )
+        platform.revenue += order_rev
+
     if excluded:
         log.info("Shopify excluded %s draft/POS/void order(s) from Direct rollup", excluded)
+        for sample in excluded_samples:
+            log.info("Shopify excluded sample: %s", sample)
+    log.info("Shopify classify counts: %s", classify_counts)
     for platform in platforms.values():
         log.info(
             "%s: revenue=%s orders=%s units=%s",
@@ -1022,25 +1110,55 @@ def fetch_amazon_sellerboard(
     product_df = _load_sellerboard_csv(env["SELLERBOARD_PRODUCT_URL"], "product")
     filtered = _filter_daily_rows(daily_df, report_day, label="daily")
 
+    # Prefer Amazon Seller Central–style Ordered Product Sales / Gross over net "Sales"
+    # (net Sales is often promo/refund-adjusted and under-reports vs TripleWhale / SC).
     sales_col = _first_matching_column(
         filtered,
-        ("Sales", "Revenue", "Ordered Product Sales", "Gross Sales", "Sales USD", "Amount"),
+        (
+            "Ordered Product Sales",
+            "Gross Sales",
+            "Sales USD",
+            "Revenue",
+            "Sales",
+            "Amount",
+        ),
     )
     units_col = _first_matching_column(
         filtered,
-        ("Units", "Units Ordered", "Quantity", "Orders", "Order Count"),
+        ("Units Ordered", "Units Sold", "Ordered Units", "Units", "Quantity", "Orders", "Order Count"),
     )
     orders_col = _first_matching_column(filtered, ("Orders", "Order Count"))
     acos_col = _first_matching_column(filtered, ("Real ACOS", "ACOS", "ACoS", "ACOS %"))
+    promo_col = _first_matching_column(
+        filtered, ("Promo", "Promotions", "Promotion", "Discounts", "Promo Value")
+    )
 
-    # Daily headline metrics come ONLY from date-matched daily rows.
+    # Daily headline metrics come from date-matched daily rows (ET calendar day via CSV Date).
     if filtered.empty:
         revenue = Decimal("0")
         units = 0
         order_count = 0
         amazon_acos: Decimal | None = None
+        daily_sales_raw = Decimal("0")
+        promo_raw = Decimal("0")
     else:
-        revenue = _sum_numeric(filtered, sales_col)
+        daily_sales_raw = _sum_numeric(filtered, sales_col)
+        promo_raw = _sum_numeric(filtered, promo_col) if promo_col else Decimal("0")
+        # If Promo is a discount amount, restore gross-like total for ops reporting.
+        revenue = daily_sales_raw
+        if promo_col and promo_raw != 0:
+            # Sellerboard Promo is typically the discount magnitude (positive) or a
+            # negative adjustment already applied to Sales. Use the larger gross signal.
+            gross_candidate = daily_sales_raw + abs(promo_raw)
+            if gross_candidate > revenue:
+                log.info(
+                    "Sellerboard daily: Sales=%s Promo(%s)=%s → using Sales+|Promo|=%s",
+                    daily_sales_raw,
+                    promo_col,
+                    promo_raw,
+                    gross_candidate,
+                )
+                revenue = gross_candidate
         units = int(_sum_numeric(filtered, units_col))
         order_count = int(_sum_numeric(filtered, orders_col)) if orders_col else units
         amazon_acos = None
@@ -1052,10 +1170,36 @@ def fetch_amazon_sellerboard(
             elif not acos_series.empty:
                 amazon_acos = money_decimal(acos_series.mean())
 
+        # Diagnostic: dump matched daily metric columns (no secrets).
+        sample_cols = [
+            c
+            for c in (
+                sales_col,
+                units_col,
+                orders_col,
+                promo_col,
+                acos_col,
+                _first_matching_column(filtered, ("Date", "Day", "Marketplace", "Market")),
+            )
+            if c
+        ]
+        preview = filtered[sample_cols].head(5).to_dict(orient="records") if sample_cols else []
+        log.info(
+            "Sellerboard daily metrics for %s: sales_col=%r units_col=%r "
+            "rows=%s revenue=%s units=%s preview=%s columns=%s",
+            report_day.isoformat(),
+            sales_col,
+            units_col,
+            len(filtered),
+            revenue,
+            units,
+            preview,
+            list(filtered.columns)[:25],
+        )
+
     cats = empty_category_counts()
     skus: list[SkuRow] = []
     # Product / Dashboard-by-Product export drives SKU drilldown + category matrix.
-    # Never replace daily headline revenue with product-row sums.
     sku_col = _first_matching_column(
         product_df,
         ("SKU", "Seller SKU", "MSKU", "Merchant SKU", "Asin", "ASIN"),
@@ -1066,11 +1210,18 @@ def fetch_amazon_sellerboard(
     )
     p_sales_col = _first_matching_column(
         product_df,
-        ("Sales", "Revenue", "Ordered Product Sales", "Gross Sales", "Sales USD", "Amount"),
+        (
+            "Ordered Product Sales",
+            "Gross Sales",
+            "Sales USD",
+            "Revenue",
+            "Sales",
+            "Amount",
+        ),
     )
     p_units_col = _first_matching_column(
         product_df,
-        ("Units", "Units Ordered", "Quantity", "Units Sold", "Ordered Units"),
+        ("Units Ordered", "Units Sold", "Ordered Units", "Units", "Quantity"),
     )
     p_date_col = _first_matching_column(
         product_df,
@@ -1080,7 +1231,6 @@ def fetch_amazon_sellerboard(
     if p_date_col is not None:
         product_rows = _filter_daily_rows(product_df, report_day, label="product")
     elif not filtered.empty:
-        # Assume day-scoped product automation URL when daily already matched.
         product_rows = product_df
         log.info(
             "Sellerboard product: no date column — using full product CSV as day-scoped "
@@ -1095,7 +1245,6 @@ def fetch_amazon_sellerboard(
         )
         product_rows = product_df.iloc[0:0].copy()
 
-    # Aggregate duplicate SKU lines for the target day (Dashboard-by-Product can repeat).
     sku_agg: dict[tuple[str, str], dict[str, Any]] = {}
     for _, row in product_rows.iterrows():
         title = str(row[title_col]).strip() if title_col else ""
@@ -1122,9 +1271,8 @@ def fetch_amazon_sellerboard(
             SkuRow(platform="Amazon", sku=sku, item=title or sku, units=qty, revenue=line_rev)
         )
 
-    # If product rows exist but units still don't cover the daily total, keep SKU truth
-    # and log the gap (do not invent synthetic SKUs).
     sku_units = sum(row.units for row in skus)
+    sku_revenue = sum((row.revenue for row in skus), Decimal("0"))
     if units and sku_units == 0:
         log.warning(
             "Sellerboard: daily units=%s but product SKU rows matched 0 for %s "
@@ -1132,13 +1280,30 @@ def fetch_amazon_sellerboard(
             units,
             report_day.isoformat(),
         )
-    elif units and sku_units and sku_units != units:
+    else:
         log.info(
-            "Sellerboard: daily units=%s vs product SKU units=%s for %s (category matrix uses SKU)",
+            "Sellerboard: daily units=%s revenue=%s vs product SKU units=%s revenue=%s for %s",
             units,
+            revenue,
             sku_units,
+            sku_revenue,
             report_day.isoformat(),
         )
+
+    # When product Dashboard-by-Product gross exceeds daily net Sales, prefer product
+    # for the Amazon KPI (aligns with Seller Central Ordered Product Sales).
+    if sku_revenue > revenue and sku_revenue > 0:
+        log.info(
+            "Sellerboard: elevating Amazon headline to product SKU sum %s "
+            "(was daily %s) for %s",
+            sku_revenue,
+            revenue,
+            report_day.isoformat(),
+        )
+        revenue = money_decimal(sku_revenue)
+        if sku_units > units:
+            units = sku_units
+            order_count = max(order_count, sku_units)
 
     platform = PlatformMetrics(
         key="amazon",
