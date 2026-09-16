@@ -480,7 +480,7 @@ def _looks_like_nordstrom(blob: str, tag_bits: list[str]) -> bool:
     return False
 
 
-def _created_at_et_date(node: dict[str, Any]) -> date | None:
+def _shopify_order_et_datetime(node: dict[str, Any]) -> datetime | None:
     raw = node.get("createdAt")
     if not raw:
         return None
@@ -489,18 +489,41 @@ def _created_at_et_date(node: dict[str, Any]) -> date | None:
         created = datetime.fromisoformat(text)
         if created.tzinfo is None:
             created = created.replace(tzinfo=timezone.utc)
-        return created.astimezone(ET).date()
+        return created.astimezone(ET)
     except Exception:
         return None
+
+
+def _created_at_et_date(node: dict[str, Any]) -> date | None:
+    created = _shopify_order_et_datetime(node)
+    return created.date() if created else None
+
+
+def _nordstrom_sales_day(node: dict[str, Any]) -> date | None:
+    """Retail day for Nordstrom EDI / marketplace imports.
+
+    Nordstrom batches often land in Shopify the next ET calendar day (clustered
+    draft/import timestamps). Attribute those imports to the prior retail day so
+    Tuesday units are not reported as $0.
+    """
+    created = _shopify_order_et_datetime(node)
+    if created is None:
+        return None
+    # EDI / marketplace imports: roll back one ET calendar day.
+    return (created - timedelta(days=1)).date()
 
 
 def _iter_shopify_orders(
     report_day: date,
     *,
     extra_search: str | None = None,
+    created_end_exclusive: date | None = None,
 ) -> list[dict[str, Any]]:
     endpoint, headers = _shopify_endpoint()
     start, end, start_token, end_token = shopify_day_bounds(report_day)
+    if created_end_exclusive is not None and created_end_exclusive > report_day:
+        end_token = created_end_exclusive.isoformat()
+        end = datetime.combine(created_end_exclusive, datetime.min.time(), tzinfo=ET)
     query = """
     query OrdersPage($cursor: String, $query: String!) {
       orders(first: 50, after: $cursor, query: $query, sortKey: CREATED_AT) {
@@ -539,8 +562,6 @@ def _iter_shopify_orders(
       }
     }
     """
-    # Date-only bounds in shop-local calendar + exclude cancelled.
-    # Post-filter still enforces America/New_York calendar membership.
     search = (
         f"created_at:>={start_token} created_at:<{end_token} "
         f"-status:cancelled -status:abandoned"
@@ -572,25 +593,46 @@ def _iter_shopify_orders(
             node = edge.get("node")
             if not node:
                 continue
+            tags = node.get("tags") or []
+            tag_bits = (
+                [str(t).strip().lower() for t in tags]
+                if isinstance(tags, list)
+                else [t.strip().lower() for t in str(tags).split(",") if t.strip()]
+            )
+            channel = ((node.get("channelInformation") or {}).get("channelDefinition") or {})
+            blob = " ".join(
+                [
+                    *tag_bits,
+                    str(node.get("sourceName") or ""),
+                    str((node.get("app") or {}).get("name") or ""),
+                    str(channel.get("channelName") or ""),
+                    str(channel.get("subChannelName") or ""),
+                ]
+            ).lower()
+            is_nordstrom = _looks_like_nordstrom(blob, tag_bits)
             created_day = _created_at_et_date(node)
-            if created_day != report_day:
+            sales_day = _nordstrom_sales_day(node) if is_nordstrom else created_day
+            if sales_day != report_day:
                 skipped_tz += 1
-                # Keep marketplace-tagged orders even if shop-TZ search drifted;
-                # still require ET calendar day match above — just log context.
-                tags = node.get("tags") or []
-                blob = " ".join(
-                    [str(tags), str(node.get("sourceName") or ""), str((node.get("app") or {}).get("name") or "")]
-                ).lower()
-                if _looks_like_nordstrom(blob, [str(t).lower() for t in (tags if isinstance(tags, list) else str(tags).split(","))]):
-                    log.warning(
-                        "Shopify Nordstrom-like order %s dropped by ET day filter "
-                        "(createdAt=%s, et_day=%s, target=%s)",
+                if is_nordstrom:
+                    log.info(
+                        "Shopify Nordstrom order %s not for target %s "
+                        "(createdAt=%s created_et=%s sales_day=%s)",
                         node.get("name"),
+                        report_day.isoformat(),
                         node.get("createdAt"),
                         created_day,
-                        report_day.isoformat(),
+                        sales_day,
                     )
                 continue
+            if is_nordstrom and created_day != report_day:
+                log.info(
+                    "Shopify Nordstrom EDI lag: %s created_et=%s attributed_to=%s tags=%s",
+                    node.get("name"),
+                    created_day,
+                    sales_day,
+                    tags,
+                )
             nodes.append(node)
         page = orders.get("pageInfo") or {}
         if page.get("hasNextPage") and page.get("endCursor"):
@@ -599,8 +641,7 @@ def _iter_shopify_orders(
         break
     if skipped_tz:
         log.warning(
-            "Shopify post-filter dropped %s order(s) outside ET calendar day %s "
-            "(prevents UTC offset leakage into Shopify Direct)",
+            "Shopify post-filter dropped %s order(s) outside target retail day %s",
             skipped_tz,
             report_day.isoformat(),
         )
@@ -632,8 +673,8 @@ def fetch_shopify_channels(report_day: date) -> tuple[dict[str, PlatformMetrics]
     )
     nodes = _merge_shopify_orders(
         _iter_shopify_orders(report_day),
-        # Supplemental marketplace pull — catches Nordstrom EDI tags that the
-        # broad day query can miss when channel apps create delayed records.
+        # Nordstrom EDI often imports the next ET day — search report_day..report_day+1
+        # and attribute matched Nordstrom orders back to report_day.
         _iter_shopify_orders(
             report_day,
             extra_search=(
@@ -641,6 +682,7 @@ def fetch_shopify_channels(report_day: date) -> tuple[dict[str, PlatformMetrics]
                 "tag:Nordstrom-Rack OR tag:nordstrom-rack OR tag:NR OR "
                 "tag:nordstrom-market"
             ),
+            created_end_exclusive=report_day + timedelta(days=2),
         ),
     )
 
@@ -908,15 +950,22 @@ def _pandas():
     return pd
 
 
-def _first_matching_column(df: Any, candidates: tuple[str, ...]) -> str | None:
+def _first_matching_column(
+    df: Any,
+    candidates: tuple[str, ...],
+    *,
+    allow_substring: bool = True,
+) -> str | None:
     normalized = {str(col).strip().lower(): col for col in df.columns}
     for candidate in candidates:
         if candidate.lower() in normalized:
             return normalized[candidate.lower()]
+    if not allow_substring:
+        return None
     for candidate in candidates:
         needle = candidate.lower()
-        # Avoid bare "sales"/"units" substring hits on SalesOrganic / UnitsPPC —
-        # those breakdown columns are summed separately.
+        # Avoid bare "sales"/"units" substring hits on SalesOrganic / UnitsPPC on
+        # daily dashboard exports (those are summed via _sum_sellerboard_metric_group).
         if needle in {"sales", "units", "revenue", "orders"}:
             continue
         for key, original in normalized.items():
@@ -1342,13 +1391,24 @@ def fetch_amazon_sellerboard(
             "Sales USD",
             "Revenue",
             "Sales",
+            "SalesOrganic",
             "Amount",
         ),
     )
+    # Product exports use plain Sales/Units — allow exact names via candidates above;
+    # also accept Organic as last resort for line revenue.
+    if p_sales_col is None:
+        p_sales_col = _first_matching_column(
+            product_df, ("SalesOrganic", "SalesPPC"), allow_substring=True
+        )
     p_units_col = _first_matching_column(
         product_df,
-        ("Units Ordered", "Units Sold", "Ordered Units", "Units", "Quantity"),
+        ("Units Ordered", "Units Sold", "Ordered Units", "Units", "UnitsOrganic", "Quantity"),
     )
+    if p_units_col is None:
+        p_units_col = _first_matching_column(
+            product_df, ("UnitsOrganic", "UnitsPPC"), allow_substring=True
+        )
     p_date_col = _first_matching_column(
         product_df,
         ("Date", "Day", "Report Date", "Datetime", "Time", "Period", "date"),
