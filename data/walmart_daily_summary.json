@@ -4,11 +4,11 @@
     "Other": 0,
     "Ponchos": 0,
     "Shirts": 0,
-    "Umbrellas": 0
+    "Umbrellas": 1
   },
-  "generated_at_utc": "2026-09-19T17:17:54.245084Z",
-  "gross_revenue": 0.0,
-  "order_count": 0,
+  "generated_at_utc": "2026-09-20T17:29:19.191576Z",
+  "gross_revenue": 75.0,
+  "order_count": 1,
   "queried_ship_node_types": [
     "SellerFulfilled",
     "WFSFulfilled"
@@ -26,26 +26,37 @@
     "SellerFulfilled:Shipped": 0,
     "WFSFulfilled:Acknowledged": 0,
     "WFSFulfilled:Created": 0,
-    "WFSFulfilled:Delivered": 0,
+    "WFSFulfilled:Delivered": 1,
     "WFSFulfilled:Shipped": 0
   },
   "reconciliation": {
     "revenue_variance": 0.0,
     "unit_variance": 0
   },
-  "report_date": "2026-09-18",
+  "report_date": "2026-09-19",
   "schema_version": 1,
-  "sku_line_items": [],
+  "sku_line_items": [
+    {
+      "category": "Umbrellas",
+      "gross_revenue": 75.0,
+      "item_name": "Weatherman Collapsible Travel Umbrella 40 Inches (Navy Blue)",
+      "sku": "12005-600-221-51-WFS",
+      "statuses": [
+        "Delivered"
+      ],
+      "units": 1
+    }
+  ],
   "source": "Walmart Marketplace Orders API",
   "status": "complete",
   "timezone": "America/New_York",
-  "total_units": 0,
+  "total_units": 1,
   "window_local": {
-    "end_exclusive": "2026-09-19T00:00:00 America/New_York",
-    "start_inclusive": "2026-09-18T00:00:00 America/New_York"
+    "end_exclusive": "2026-09-20T00:00:00 America/New_York",
+    "start_inclusive": "2026-09-19T00:00:00 America/New_York"
   },
   "window_utc": {
-    "end_exclusive": "2026-09-19T04:00:00Z",
-    "start_inclusive": "2026-09-18T04:00:00Z"
+    "end_exclusive": "2026-09-20T04:00:00Z",
+    "start_inclusive": "2026-09-19T04:00:00Z"
   }
 }
