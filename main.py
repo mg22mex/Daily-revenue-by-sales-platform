@@ -63,6 +63,16 @@ WALMART_ORDERS_URL = "https://marketplace.walmartapis.com/v3/orders"
 WALMART_STATUSES = ("Created", "Acknowledged", "Shipped", "Delivered")
 WALMART_SHIP_NODE_TYPES = ("SellerFulfilled", "WFSFulfilled")
 BREVO_SMTP_URL = "https://api.brevo.com/v3/smtp/email"
+# Default To-list when REPORT_RECIPIENTS is unset (also documented in .env.example).
+DEFAULT_REPORT_RECIPIENTS = [
+    "marco@weatherman.com",
+    "rick@weatherman.com",
+    "christine@weatherman.com",
+    "margo@ltv-approach.com",
+    "sajjad@weatherman.com",
+    "mollie@weatherman.com",
+    "slease@saxadvisorygroup.com",
+]
 HTTP_TIMEOUT = 60
 HTTP_RETRIES = 3
 # Do not retry these — credentials / permission failures need a secret refresh, not backoff.
@@ -2374,13 +2384,31 @@ def run_backfill(
 
 
 def parse_recipients(raw: str | None = None) -> list[dict[str, str]]:
-    """Parse REPORT_RECIPIENTS into Brevo `to` list: [{"email": "..."}, ...]."""
-    recipients_raw = raw if raw is not None else os.getenv("REPORT_RECIPIENTS", "")
-    to_list = [
-        {"email": email.strip()}
-        for email in recipients_raw.replace(";", ",").split(",")
-        if email.strip()
-    ]
+    """Parse REPORT_RECIPIENTS into Brevo `to` list: [{"email": "..."}, ...].
+
+    Falls back to ``DEFAULT_REPORT_RECIPIENTS`` when unset. Always unions the
+    default list so in-repo adds (e.g. advisory contacts) are not dropped when
+    the Actions secret lags behind.
+    """
+    if raw is None:
+        raw = os.getenv("REPORT_RECIPIENTS", "")
+    to_list: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for email in str(raw).replace(";", ",").split(","):
+        addr = email.strip()
+        if not addr:
+            continue
+        key = addr.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        to_list.append({"email": addr})
+    for addr in DEFAULT_REPORT_RECIPIENTS:
+        key = addr.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        to_list.append({"email": addr})
     if not to_list:
         raise RuntimeError("REPORT_RECIPIENTS did not contain any email addresses")
     return to_list
@@ -2465,7 +2493,10 @@ def run(demo: bool = False, skip_email: bool = False, target_date: date | None =
     log.info("Wrote email preview %s", email_preview)
 
     if demo:
-        os.environ.setdefault("REPORT_RECIPIENTS", "rick@weatherman.com, marco@weatherman.com")
+        os.environ.setdefault(
+            "REPORT_RECIPIENTS",
+            ", ".join(DEFAULT_REPORT_RECIPIENTS),
+        )
         os.environ.setdefault("BREVO_SENDER_EMAIL", "marco@weatherman.com")
         payload = build_brevo_payload(report, email_html)
         log.info(

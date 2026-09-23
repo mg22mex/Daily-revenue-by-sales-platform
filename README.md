@@ -119,7 +119,7 @@ Enable **GitHub Pages** from the `docs/` folder on `main`, then set secret `DASH
 | `SELLERBOARD_DAILY_URL` / `SELLERBOARD_PRODUCT_URL` | Yes | Permanent CSV automation URLs (daily + product) |
 | `SELLERBOARD_DAYFIRST` | Optional | `true`/`dmy` (default) or `us`/`0` for MM/DD exports |
 | `BREVO_API_KEY` | Yes | Transactional email |
-| `REPORT_RECIPIENTS` | Yes | Comma/semicolon emails |
+| `REPORT_RECIPIENTS` | Yes | Comma/semicolon emails. Defaults include marco/rick/christine/margo/sajjad/mollie + `slease@saxadvisorygroup.com` |
 | `BREVO_SENDER_EMAIL` | Recommended | Verified Brevo sender |
 | `BREVO_SENDER_NAME` | Optional | Default `Weatherman Revenue` |
 | `DASHBOARD_PUBLIC_URL` | Recommended | GitHub Pages **site root** (no filename). CTA always appends `/{YYYY-MM-DD}.html` |
