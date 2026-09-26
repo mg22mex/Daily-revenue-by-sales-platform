@@ -4,11 +4,11 @@
     "Other": 0,
     "Ponchos": 0,
     "Shirts": 0,
-    "Umbrellas": 0
+    "Umbrellas": 1
   },
-  "generated_at_utc": "2026-09-25T18:38:39.580454Z",
-  "gross_revenue": 0.0,
-  "order_count": 0,
+  "generated_at_utc": "2026-09-26T17:46:01.722861Z",
+  "gross_revenue": 75.0,
+  "order_count": 1,
   "queried_ship_node_types": [
     "SellerFulfilled",
     "WFSFulfilled"
@@ -27,25 +27,36 @@
     "WFSFulfilled:Acknowledged": 0,
     "WFSFulfilled:Created": 0,
     "WFSFulfilled:Delivered": 0,
-    "WFSFulfilled:Shipped": 0
+    "WFSFulfilled:Shipped": 1
   },
   "reconciliation": {
     "revenue_variance": 0.0,
     "unit_variance": 0
   },
-  "report_date": "2026-09-24",
+  "report_date": "2026-09-25",
   "schema_version": 1,
-  "sku_line_items": [],
+  "sku_line_items": [
+    {
+      "category": "Umbrellas",
+      "gross_revenue": 75.0,
+      "item_name": "Weatherman Collapsible Travel Umbrella Auto Open Fiberglass (Sage)",
+      "sku": "FBM-12005-310-00003",
+      "statuses": [
+        "Shipped"
+      ],
+      "units": 1
+    }
+  ],
   "source": "Walmart Marketplace Orders API",
   "status": "complete",
   "timezone": "America/New_York",
-  "total_units": 0,
+  "total_units": 1,
   "window_local": {
-    "end_exclusive": "2026-09-25T00:00:00 America/New_York",
-    "start_inclusive": "2026-09-24T00:00:00 America/New_York"
+    "end_exclusive": "2026-09-26T00:00:00 America/New_York",
+    "start_inclusive": "2026-09-25T00:00:00 America/New_York"
   },
   "window_utc": {
-    "end_exclusive": "2026-09-25T04:00:00Z",
-    "start_inclusive": "2026-09-24T04:00:00Z"
+    "end_exclusive": "2026-09-26T04:00:00Z",
+    "start_inclusive": "2026-09-25T04:00:00Z"
   }
 }
